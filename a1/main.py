@@ -2,10 +2,9 @@ from functools import partial
 import re
 import xml.etree.ElementTree as ET
 from html import unescape
-import sys
 import argparse
 import os
-
+import pickle
 
 entry_regex = re.compile(
     r"<(article|book|phdthesis|www|incollection|proceedings|inproceedings)[\s\S]*?<(\/article|\/book|\/phdthesis|\/www|\/incollection|\/proceedings|\/inproceedings)>"
@@ -69,6 +68,19 @@ def create_testfile(dataset: str, chunksize: int):
             f.write(tmp_entry)
 
 
+def count_singletons(set_list):
+    singleton_dict = dict()
+    for sets in set_list:
+        for elem in sets:
+            if elem in singleton_dict:
+                singleton_dict[elem] += 1
+            else:
+                singleton_dict[elem] = 1
+
+    with open("singletons.pkl", "wb") as pkl_file:
+        pickle.dump(singleton_dict, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+
 def main():
     args = arg_parser.parse_args()
 
@@ -77,6 +89,7 @@ def main():
         exit()
 
     author_set_list = []
+    support = 4
 
     try:
         gen_entry_string = entry_string(args.dataset, args.chunksize * 1024 * 1024)
@@ -86,8 +99,14 @@ def main():
     except FileNotFoundError:
         print(f"Could not find file {args.dataset}")
 
-    for author in author_set_list:
-        print(author)
+    count_singletons(author_set_list)
+
+    with open("singletons.pkl", "rb") as pkl_file:
+        singleton_dict = pickle.load(pkl_file)
+        freq_items = dict(
+            filter(lambda elem: elem[1] >= support, singleton_dict.items())
+        )
+        print(freq_items)
 
 
 if __name__ == "__main__":
