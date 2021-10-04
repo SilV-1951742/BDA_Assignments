@@ -78,8 +78,9 @@ def create_testfile(dataset: str, chunksize: int):
 # Hashes a given tuple to a (finite) bucket id
 # TODO: fix hasher not being deterministic. Perhaps the .encode method is not deterministic?
 def tuple_hasher(tuple):
-    hash = hashlib.sha256(str(tuple).encode('utf-8'))
+    hash = hashlib.sha256(int(str(tuple).encode('utf-8')))
     bucket_id = int.from_bytes(hash.digest(), 'big') % buckets_count
+    print("hashed " + str(tuple) + " to: " + str(bucket_id))
     return bucket_id
 
 
@@ -138,7 +139,7 @@ def pcy_second_pass():
 
 
     print("Pairs before second pass: ")
-    print(pairs[:100])
+    print(len(pairs))
 
     print("\n")
 
@@ -153,7 +154,7 @@ def pcy_second_pass():
             pairs.remove(pair)
 
     print("Resulting possible frequent pairs after second pass: " )
-    print(pairs[:100])
+    print(len(pairs))
 
 
 def main():
@@ -175,6 +176,7 @@ def main():
 
     pcy_first_pass(author_set_list)
     pcy_second_pass()
+
 
     # with open("singletons.pkl", "rb") as pkl_file:
     #     singleton_dict = pickle.load(pkl_file)
