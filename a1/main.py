@@ -75,7 +75,7 @@ def create_testfile(dataset: str, chunksize: int):
     author_set_list = []
 
     with open("testfile.xml", "a") as f:
-        for _ in range(15000):
+        for _ in range(10000):
             tmp_entry = unescape(next(gen_entry_string))
             author_set_list.append(create_author_set(tmp_entry))
             f.write(tmp_entry)
@@ -100,22 +100,35 @@ def count_singletons(set_list):
     return singleton_dict
 
 
-def gen_pairs(singletons, min_support, set_list):
+def gen_candidate_k_tuple(singletons, min_support, k, previous_iteration = dict()):
+    """
+    Generator to calculate k sized tuples.
+    """
+    for comb in itertools.combinations(singletons, k):
+        for elem in comb:
+            if singletons[elem] < min_support:
+                continue
+            if len(previous_iteration) > 0:
+                print("Do something")
+        yield frozenset(comb)
+
+
+def gen_counted_pairs(singletons, min_support, set_list):
+    """
+    Function that creates a dictionary of counted pairs.
+    """
     pairs = []
     pair_dict = dict()
 
     if os.path.exists("pairs.pkl"):
-        print("Opened pairs pickle file.")
+        print("Opening pairs pickle file.")
         with open("pairs.pkl", "rb") as pkl_file:
             pair_dict = pickle.load(pkl_file)
     else:
-        for comb in itertools.combinations(singletons, 2):
-            if (
-                singletons[comb[0]] >= min_support
-                and singletons[comb[1]] >= min_support
-                and (comb not in pairs)
-            ):
-                pairs.append(frozenset(comb))
+        pair_generator = gen_candidate_k_tuple(singletons, min_support, 2)
+        for comb in pair_generator:
+            if comb not in pairs:
+                pairs.append(comb)
 
         print("Generated pair candidates")
 
@@ -133,6 +146,19 @@ def gen_pairs(singletons, min_support, set_list):
 
     return pair_dict
 
+def gen_counted_tuples(singletons, pair_dict, min_support, set_list):
+    k = 3
+
+    candidate_tuples = []
+    candidate_dict = dict()
+
+    current_tuples = pair_dict.items()
+    candidate_dict = pair_dict
+    
+    while len(current_tuples) != 0:
+        tuple_generator = gen_candidate_k_tuple(singletons, min_support, k)
+        for comb in tuple_generator:
+            if comb not in candidate_tuples
 
 # def apriori(singletons, min_support):
 #     k = 2
@@ -146,6 +172,7 @@ def main():
         exit()
 
     author_set_list = []
+    freq_singletons = dict()
     support = 4
 
     try:
@@ -157,20 +184,31 @@ def main():
     except FileNotFoundError:
         print(f"Could not find file {args.dataset}")
 
-    freq_singletons = dict(
-        filter(
-            lambda elem: elem[1] >= support, count_singletons(author_set_list).items()
+    try:
+        print("Opening frequent singletons.")
+        with open("freq_singletons.pkl", "rb") as pkl_file:
+            freq_singletons = pickle.load(pkl_file)
+    except FileNotFoundError:
+        print("Can't open frequent singletons file")
+        freq_singletons = dict(
+            filter(
+                lambda elem: elem[1] >= support,
+                count_singletons(author_set_list).items(),
+            )
         )
-    )
+        with open("freq_singletons.pkl", "wb") as pkl_file:
+            pickle.dump(freq_singletons, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    print(f"Amount of freq singletons: {len(freq_singletons)}")
 
     freq_pairs = dict(
         filter(
             lambda elem: elem[1] >= support,
-            gen_pairs(freq_singletons, 4, author_set_list).items(),
+            gen_counted_pairs(freq_singletons, 4, author_set_list).items(),
         )
     )
 
-    # print(freq_pairs)
+    print(freq_pairs)
 
     # with open("singletons.pkl", "rb") as pkl_file:
     #     singleton_dict = pickle.load(pkl_file)
