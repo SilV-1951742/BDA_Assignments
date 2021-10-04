@@ -1,10 +1,17 @@
 from functools import partial
 import re
+from typing import Dict
 import xml.etree.ElementTree as ET
 from html import unescape
 import argparse
 import os
 import pickle
+import itertools
+import hashlib
+
+buckets_count = 1000
+support = 4
+k = 2
 
 entry_regex = re.compile(
     r"<(article|book|phdthesis|www|incollection|proceedings|inproceedings)[\s\S]*?<(\/article|\/book|\/phdthesis|\/www|\/incollection|\/proceedings|\/inproceedings)>"
@@ -65,20 +72,88 @@ def create_testfile(dataset: str, chunksize: int):
         for _ in range(10000):
             tmp_entry = unescape(next(gen_entry_string))
             author_set_list.append(create_author_set(tmp_entry))
-            f.write(tmp_entry)
+            f.write(tmp_entry)        
 
 
-def count_singletons(set_list):
+# Hashes a given tuple to a (finite) bucket id
+# TODO: fix hasher not being deterministic. Perhaps the .encode method is not deterministic?
+def tuple_hasher(tuple):
+    hash = hashlib.sha256(str(tuple).encode('utf-8'))
+    bucket_id = int.from_bytes(hash.digest(), 'big') % buckets_count
+    return bucket_id
+
+
+def pcy_first_pass(set_list):
     singleton_dict = dict()
-    for sets in set_list:
-        for elem in sets:
+    buckets = dict()
+    for set in set_list:
+        for elem in set:
             if elem in singleton_dict:
                 singleton_dict[elem] += 1
             else:
                 singleton_dict[elem] = 1
+        if (len(set) > 1):
+            pairs = list(itertools.combinations(set, 2))
+            for pair in pairs:
+                bucket = tuple_hasher(pair)
+                if bucket in buckets:
+                    buckets[bucket] += 1
+                else:
+                    buckets[bucket] = 1
 
-    with open("singletons.pkl", "wb") as pkl_file:
-        pickle.dump(singleton_dict, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
+    frequent_singletons = list(
+        dict(
+            filter(lambda elem: elem[1] >= support, singleton_dict.items())
+        ).keys()
+    )
+
+    with open("frequent_singletons.pkl", "wb") as pkl_file:
+        pickle.dump(frequent_singletons, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # Convert buckets to bitvector
+    bitvector = []
+    for bucket in range(0, buckets_count):
+        if bucket in buckets:
+            if (buckets[bucket] > support):
+                bitvector.append(True)
+            else:
+                bitvector.append(False)
+        else:
+            bitvector.append(False)
+
+    with open("bitvector.pkl", "wb") as pkl_file:
+        pickle.dump(bitvector, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+# def pcy_second_pass(bitvector: list, frequent_singletons: list, pairs: list):
+def pcy_second_pass():
+
+    with open("frequent_singletons.pkl", "rb") as pkl_file:
+        frequent_singletons = pickle.load(pkl_file)
+
+    with open("bitvector.pkl", "rb") as pkl_file:
+        bitvector = pickle.load(pkl_file)
+
+    pairs = list(itertools.combinations(frequent_singletons, 2))
+
+
+    print("Pairs before second pass: ")
+    print(pairs[:100])
+
+    print("\n")
+
+    for pair in pairs:
+        bucket = tuple_hasher(pair)
+        if bitvector[bucket] == True:
+            for item in pair:
+                if (item not in frequent_singletons):
+                    pairs.remove(pair)
+                    break  
+        else:
+            pairs.remove(pair)
+
+    print("Resulting possible frequent pairs after second pass: " )
+    print(pairs[:100])
 
 
 def main():
@@ -89,7 +164,6 @@ def main():
         exit()
 
     author_set_list = []
-    support = 4
 
     try:
         gen_entry_string = entry_string(args.dataset, args.chunksize * 1024 * 1024)
@@ -99,14 +173,82 @@ def main():
     except FileNotFoundError:
         print(f"Could not find file {args.dataset}")
 
-    count_singletons(author_set_list)
+    pcy_first_pass(author_set_list)
+    pcy_second_pass()
 
-    with open("singletons.pkl", "rb") as pkl_file:
-        singleton_dict = pickle.load(pkl_file)
-        freq_items = dict(
-            filter(lambda elem: elem[1] >= support, singleton_dict.items())
-        )
-        print(freq_items)
+    # with open("singletons.pkl", "rb") as pkl_file:
+    #     singleton_dict = pickle.load(pkl_file)
+    #     # Generate frequent singletons
+    #     freq_singletons = dict(
+    #         filter(lambda elem: elem[1] >= support, singleton_dict.items())
+    #     )
+
+"""
+    # Generate candidate pairs    
+    candidate_pairs = list(itertools.combinations(freq_singletons.keys(), 2))
+
+    k_tuples_dict = dict()
+
+    for tuple in candidate_pairs:
+        for author_set in author_set_list:
+            if (len(author_set.intersection(tuple)) == k):
+                frozen_tuple = frozenset(tuple)
+                if frozen_tuple in k_tuples_dict:
+                    k_tuples_dict[frozen_tuple] += 1
+                else:
+                    k_tuples_dict[frozen_tuple] = 1
+    
+    k_tuples_dict = dict(
+        filter(lambda elem: elem[1] >= support, k_tuples_dict.items())
+    )
+"""
+
+    # print(k_tuples_dict)
+    
+
+
+    # for item in k_tuples_dict:
+    #     print(item)
+
+
+    # print(freq_items)
+
+    # k = 2
+
+    # k_freq_items_combinations = list(itertools.combinations(freq_items.keys(), 2))
+    
+    # print(k_freq_items_combinations)
+
+    # print(k_tuples)
+
+    # for current_k in range(2,k+1):
+
+    #     print(current_k)
+
+    #     k_tuples = list(itertools.combinations(freq_k_tuples.keys(), current_k))
+
+    #     k_tuples_dict = dict()
+
+    #     for tuple in k_tuples:
+    #         for author_set in author_set_list:
+    #             if (len(author_set.intersection(tuple)) == current_k):
+    #                 frozen_tuple = frozenset(tuple)
+    #                 if frozen_tuple in k_tuples_dict:
+    #                     k_tuples_dict[frozen_tuple] += 1
+    #                 else:
+    #                     k_tuples_dict[frozen_tuple] = 1
+
+    #     freq_k_tuples = dict(
+    #         filter(lambda elem: elem[1] >= support, k_tuples_dict.items())
+    #     )
+
+    #     print(freq_k_tuples)
+
+    #     for item in freq_k_tuples:
+    #         print(item)
+
+    # for item in k_tuples:
+    #     print(k_tuples)
 
 
 if __name__ == "__main__":
