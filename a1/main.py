@@ -7,7 +7,6 @@ import os
 import pickle
 import itertools
 
-
 entry_regex = re.compile(
     r"<(article|book|phdthesis|www|incollection|proceedings|inproceedings)[\s\S]*?<(\/article|\/book|\/phdthesis|\/www|\/incollection|\/proceedings|\/inproceedings)>"
 )
@@ -118,6 +117,8 @@ def expand_sets(previous_sets, k):
             if new_k_set not in new_k_sets and len(new_k_set) == k:
                 new_k_sets.append(new_k_set)
     
+    # print(new_k_sets)
+
     return new_k_sets
 
 
@@ -134,48 +135,57 @@ def expand_sets(previous_sets, k):
 #         yield frozenset(comb)
 
 
-def gen_counted_pairs(singletons, min_support, set_list):
+def gen_counted_pairs(singletons, min_support, set_list, k, support):
     """
     Function that creates a dictionary of counted pairs.
     """
-    pairs = []
-    pair_dict = dict()
+    sets = singletons
 
-    if os.path.exists("pairs.pkl"):
-        print("Opening pairs pickle file.")
-        with open("pairs.pkl", "rb") as pkl_file:
-            pair_dict = pickle.load(pkl_file)
-    else:
-        # pair_generator = gen_candidate_k_tuple(singletons, min_support, 2)
-        pair_generator = expand_sets(singletons, 2)
-        for comb in pair_generator:
-            if comb not in pairs:
-                pairs.append(comb)
+    for current_k in range(2, k+1):
 
-        print("Generated pair candidates")
+        if os.path.exists("sets_" + str(current_k) + ".pkl"):
+            print("Opening " + str(current_k) + " pairs pickle file.")
+            with open("sets_" + str(current_k) + ".pkl", "rb") as pkl_file:
+                set_dict = pickle.load(pkl_file)
+        else:
+            # Generate sets of size k
+            sets = expand_sets(sets, current_k)
 
-        for pair in pairs:
-            for elem in set_list:
-                if pair.issubset(elem):
-                    # print(f"Found matching pair {pair} in {elem}")
-                    if pair in pair_dict:
-                        pair_dict[pair] += 1
-                    else:
-                        pair_dict[pair] = 1
+            print("Generated " + str(current_k) + "-set candidates")
 
-        with open("pairs.pkl", "wb") as pkl_file:
-            pickle.dump(pair_dict, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
+            set_dict = dict()
+            for set in sets:
+                for elem in set_list:
+                    if set.issubset(elem):
+                        # print(f"Found matching pair {pair} in {elem}")
+                        if set in set_dict:
+                            set_dict[set] += 1
+                        else:
+                            set_dict[set] = 1
 
-    return pair_dict
+            freq_k_sets_dict = dict(
+                filter(
+                    lambda elem: elem[1] >= support,
+                    # gen_counted_pairs(freq_singletons, 4, author_set_list).items()
+                    set_dict.items(),
+                )
+            )
 
-# def gen_counted_tuples(singletons, pair_dict, min_support, set_list):
+            print(freq_k_sets_dict)
+
+            with open("sets_" + str(current_k) + ".pkl", "wb") as pkl_file:
+                pickle.dump(set_dict, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    return set_dict
+
+# def gen_counted_tuples(singletons, set_dict, min_support, set_list):
 #     k = 3
 
 #     candidate_tuples = []
 #     candidate_dict = dict()
 
-#     current_tuples = pair_dict.items()
-#     candidate_dict = pair_dict
+#     current_tuples = set_dict.items()
+#     candidate_dict = set_dict
     
 #     while len(current_tuples) != 0:
 #         tuple_generator = gen_candidate_k_tuple(singletons, min_support, k)
@@ -188,7 +198,8 @@ def gen_counted_pairs(singletons, min_support, set_list):
 
 def main():
 
-    print(frozenset(["hello"]))
+    # print(expand_sets([frozenset(("a", "b")), frozenset(("a", "c")), frozenset(("c", "d")), frozenset(("e", "f"))], 2))
+    # print(expand_sets([frozenset(("a", "b")), frozenset(("a", "c")), frozenset(("c", "d")), frozenset(("e", "f"))], 3))
 
     args = arg_parser.parse_args()
 
@@ -198,7 +209,7 @@ def main():
 
     author_set_list = []
     freq_singletons = dict()
-    support = 4
+    support = 15
 
     try:
         gen_entry_string = entry_string(args.dataset, args.chunksize * 1024 * 1024)
@@ -226,15 +237,17 @@ def main():
 
     print(f"Amount of freq singletons: {len(freq_singletons)}")
 
-    freq_pairs = dict(
-        filter(
-            lambda elem: elem[1] >= support,
-            gen_counted_pairs([frozenset([x]) for x in list(freq_singletons.keys())], 4, author_set_list).items(),
-            # gen_counted_pairs(freq_singletons, 4, author_set_list).items()
-        )
-    )
+    gen_counted_pairs([frozenset([x]) for x in list(freq_singletons.keys())], 4, author_set_list, 3, support)
 
-    print(freq_pairs)
+    # freq_pairs = dict(
+    #     filter(
+    #         lambda elem: elem[1] >= support,
+    #         # gen_counted_pairs(freq_singletons, 4, author_set_list).items()
+    #         gen_counted_pairs([frozenset([x]) for x in list(freq_singletons.keys())], 4, author_set_list, 3).items(),
+    #     )
+    # )
+
+    # print(freq_pairs)
 
 
 
