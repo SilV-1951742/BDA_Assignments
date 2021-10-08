@@ -1,4 +1,4 @@
-from functools import partial
+from functools import partial, total_ordering
 import re
 import xml.etree.ElementTree as ET
 from html import unescape
@@ -75,7 +75,7 @@ def create_testfile(dataset: str, chunksize: int):
     author_set_list = []
 
     with open("testfile.xml", "a") as f:
-        for _ in range(10000):
+        for _ in range(5000):
             tmp_entry = unescape(next(gen_entry_string))
             author_set_list.append(create_author_set(tmp_entry))
             f.write(tmp_entry)
@@ -94,77 +94,109 @@ def count_singletons(set_list):
             else:
                 singleton_dict[elem] = 1
 
-    with open("singletons.pkl", "wb") as pkl_file:
-        pickle.dump(singleton_dict, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
-
     return singleton_dict
 
 
-def gen_candidate_k_tuple(singletons, min_support, k, previous_iteration = dict()):
+def gen_candidate_k_tuple(previous_iteration, k):
     """
     Generator to calculate k sized tuples.
     """
-    for comb in itertools.combinations(singletons, k):
-        for elem in comb:
-            if singletons[elem] < min_support:
-                continue
-            if len(previous_iteration) > 0:
-                print("Do something")
+    for comb in itertools.combinations(previous_iteration, k):
         yield frozenset(comb)
 
 
-def gen_counted_pairs(singletons, min_support, set_list):
+def gen_counted_pairs(singletons, set_list):
     """
     Function that creates a dictionary of counted pairs.
     """
     pairs = []
     pair_dict = dict()
 
-    if os.path.exists("pairs.pkl"):
-        print("Opening pairs pickle file.")
-        with open("pairs.pkl", "rb") as pkl_file:
-            pair_dict = pickle.load(pkl_file)
-    else:
-        pair_generator = gen_candidate_k_tuple(singletons, min_support, 2)
-        for comb in pair_generator:
-            if comb not in pairs:
-                pairs.append(comb)
+    pair_generator = gen_candidate_k_tuple(singletons, 2)
+    for comb in pair_generator:
+        if comb not in pairs:
+            pairs.append(comb)
 
-        print("Generated pair candidates")
+    print("Generated pair candidates")
 
-        for pair in pairs:
-            for elem in set_list:
-                if pair.issubset(elem):
-                    print(f"Found matching pair {pair} in {elem}")
-                    if pair in pair_dict:
-                        pair_dict[pair] += 1
-                    else:
-                        pair_dict[pair] = 1
-
-        with open("pairs.pkl", "wb") as pkl_file:
-            pickle.dump(pair_dict, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
+    for pair in pairs:
+        for elem in set_list:
+            if pair.issubset(elem):
+                # print(f"Found matching pair {pair} in {elem}")
+                if pair in pair_dict:
+                    pair_dict[pair] += 1
+                else:
+                    pair_dict[pair] = 1
 
     return pair_dict
 
-def gen_counted_tuples(singletons, pair_dict, min_support, set_list):
+
+def gen_counted_tuples(previous_iteration, min_support, set_list):
+    print("In gen")
     k = 3
 
     candidate_tuples = []
     candidate_dict = dict()
 
-    current_tuples = pair_dict.items()
-    candidate_dict = pair_dict
-    
+    current_tuples = previous_iteration.keys()
+    # current_dict = previous_iteration
+
+    print(len(current_tuples))
+
     while len(current_tuples) != 0:
-        tuple_generator = gen_candidate_k_tuple(singletons, min_support, k)
+        tuple_generator = gen_candidate_k_tuple(current_tuples, k)
+
         for comb in tuple_generator:
-            if comb not in candidate_tuples
+            if comb not in candidate_tuples:
+                print(comb)
+                candidate_tuples.append(comb)
+
+        for c_tuple in candidate_tuples:
+            for elem in set_list:
+                if c_tuple.issubset(elem):
+                    if c_tuple in candidate_dict:
+                        candidate_dict[c_tuple] += 1
+                    else:
+                        candidate_dict[c_tuple] = 1
+
+        freq_tuples = dict(
+            filter(
+                lambda elem: elem[1] >= min_support,
+                candidate_dict,
+            )
+        )
+
+        print(freq_tuples)
+        print(f"Freq tuples for k = {k}")
+
+        yield (freq_tuples)
+
+        k += 1
+
 
 # def apriori(singletons, min_support):
 #     k = 2
 
 
+def tuple_combinations(tuple1, tuple2, k):
+    print(tuple1, tuple2)
+    total_tuple = frozenset.union(tuple1, tuple2)
+    combos = []
+    print(total_tuple)
+
+    for k_set in itertools.combinations(total_tuple, k):
+        combos.append(frozenset(k_set))
+
+    print(combos)
+    return combos
+
+
 def main():
+    # set1 = frozenset(["name1", "name2"])
+    # set2 = frozenset(["name3", "name4"])
+
+    # tuple_combinations(set1, set2, 3)
+
     args = arg_parser.parse_args()
 
     if args.testfile:
@@ -201,14 +233,31 @@ def main():
 
     print(f"Amount of freq singletons: {len(freq_singletons)}")
 
-    freq_pairs = dict(
-        filter(
-            lambda elem: elem[1] >= support,
-            gen_counted_pairs(freq_singletons, 4, author_set_list).items(),
-        )
-    )
+    freq_pairs = dict()
 
-    print(freq_pairs)
+    try:
+        print("Opening pairs pickle file.")
+        with open("freq_pairs.pkl", "rb") as pkl_file:
+            freq_pairs = pickle.load(pkl_file)
+    except FileNotFoundError:
+        print("Could not open pairs pickle file.")
+        freq_pairs = dict(
+            filter(
+                lambda elem: elem[1] >= support,
+                gen_counted_pairs(
+                    list(freq_singletons.keys()), author_set_list
+                ).items(),
+            )
+        )
+        with open("freq_pairs.pkl", "wb") as pkl_file:
+            pickle.dump(freq_pairs, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    print("Generating triplets")
+
+    tuple_generator = gen_counted_tuples(freq_pairs, support, author_set_list)
+
+    for _ in range(1):
+        next(tuple_generator)
 
     # with open("singletons.pkl", "rb") as pkl_file:
     #     singleton_dict = pickle.load(pkl_file)
