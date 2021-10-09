@@ -1,12 +1,15 @@
-from functools import partial, total_ordering
+from functools import partial
 import re
-import xml.etree.ElementTree as ET
 from html import unescape
 import argparse
 import os
 import pickle
 import itertools
+import hashlib
+from typing import Final
+from collections import defaultdict
 
+HASH_BUCKETS: Final = 10000
 
 entry_regex = re.compile(
     r"<(article|book|phdthesis|www|incollection|proceedings|inproceedings)[\s\S]*?<(\/article|\/book|\/phdthesis|\/www|\/incollection|\/proceedings|\/inproceedings)>"
@@ -27,6 +30,11 @@ arg_parser.add_argument(
     dest="testfile",
     help="Create a test dataset of 10000 entries.",
 )
+
+
+def hash_tuple(tuple_object):
+    tuple_bytes = bytearray(str(tuple_object), "utf-8")
+    return int(hashlib.sha256(tuple_bytes).hexdigest(), 16) % HASH_BUCKETS
 
 
 def entry_string(filename: str, chunk_size: int):
@@ -83,17 +91,26 @@ def count_singletons(set_list):
     with a dictionary with the counted singleton authors.
     """
     singleton_dict = dict()
+    pair_hash_dict = defaultdict()
+
     for sets in set_list:
         for elem in sets:
-            if elem in singleton_dict:
-                singleton_dict[elem] += 1
-            else:
+            if elem not in singleton_dict:
                 singleton_dict[elem] = 1
+            else:
+                singleton_dict[elem] += 1
 
-    return singleton_dict
+        for comb in itertools.combinations(sets, 2):
+            pair_hash = hash_tuple(comb)
+            if pair_hash not in pair_hash_dict:
+                pair_hash_dict[pair_hash] = 1
+            else:
+                pair_hash_dict[hash_tuple(comb)] += 1
+
+    return singleton_dict, pair_hash_dict
 
 
-def gen_candidate_k_tuple(previous_iteration, k: int):
+def gen_candidate_k_tuple(previous_iteration, k: int, min_support, pair_hash=dict()):
     """
     Generator to calculate k sized tuples.
     """
@@ -102,27 +119,23 @@ def gen_candidate_k_tuple(previous_iteration, k: int):
             for comb in itertools.combinations(pairs[0].union(pairs[1]), k):
                 yield frozenset(comb)
         else:
-            yield frozenset(pairs)
+            try:
+                if pair_hash[hash_tuple(pairs)] < min_support:
+                    continue
+                else:
+                    yield frozenset(pairs)
+            except KeyError:
+                continue
 
 
-# def tuple_combinations(previous_iteration, k: int):
-
-#     for k_set in itertools.combinations(total_tuple, k):
-#         total_tuple = frozenset.union(tuple1, tuple2)
-#         combos.append(frozenset(k_set))
-
-#     print(combos)
-#     return combos
-
-
-def gen_counted_pairs(singletons, set_list):
+def gen_counted_pairs(singletons, set_list, min_support, pair_hash):
     """
     Function that creates a dictionary of counted pairs.
     """
     pairs = []
-    pair_dict = dict()
+    pair_dict = defaultdict()
 
-    pair_generator = gen_candidate_k_tuple(singletons, 2)
+    pair_generator = gen_candidate_k_tuple(singletons, 2, min_support, pair_hash)
     for comb in pair_generator:
         if comb not in pairs:
             pairs.append(comb)
@@ -132,10 +145,7 @@ def gen_counted_pairs(singletons, set_list):
     for pair in pairs:
         for elem in set_list:
             if pair.issubset(elem):
-                if pair in pair_dict:
-                    pair_dict[pair] += 1
-                else:
-                    pair_dict[pair] = 1
+                pair_dict[pair] += 1
 
     return pair_dict
 
@@ -144,15 +154,12 @@ def gen_counted_tuples(previous_iteration, min_support, set_list):
     k = 3
 
     candidate_tuples = []
-    candidate_dict = dict()
+    candidate_dict = defaultdict()
 
     current_tuples = previous_iteration.keys()
-    # current_dict = previous_iteration
-    # print(current_tuples)
-    # print(len(current_tuples))
 
     while len(current_tuples) != 0:
-        tuple_generator = gen_candidate_k_tuple(current_tuples, k)
+        tuple_generator = gen_candidate_k_tuple(current_tuples, k, min_support)
 
         for comb in tuple_generator:
             if comb not in candidate_tuples:
@@ -163,10 +170,7 @@ def gen_counted_tuples(previous_iteration, min_support, set_list):
         for c_tuple in candidate_tuples:
             for elem in set_list:
                 if c_tuple.issubset(elem):
-                    if c_tuple in candidate_dict:
-                        candidate_dict[c_tuple] += 1
-                    else:
-                        candidate_dict[c_tuple] = 1
+                    candidate_dict[c_tuple] += 1
 
         freq_tuples = dict(
             filter(lambda elem: elem[1] >= min_support, candidate_dict.items())
@@ -191,6 +195,7 @@ def main():
 
     author_set_list = []
     freq_singletons = dict()
+    pair_hash_dict = defaultdict()
     support = 6
 
     try:
@@ -208,10 +213,11 @@ def main():
             freq_singletons = pickle.load(pkl_file)
     except FileNotFoundError:
         print("Could not open frequent singletons file.")
+        singletons, pair_hash_dict = count_singletons(author_set_list)
         freq_singletons = dict(
             filter(
                 lambda elem: elem[1] >= support,
-                count_singletons(author_set_list).items(),
+                singletons.items(),
             )
         )
         with open("freq_singletons.pkl", "wb") as pkl_file:
@@ -232,7 +238,10 @@ def main():
             filter(
                 lambda elem: elem[1] >= support,
                 gen_counted_pairs(
-                    list(freq_singletons.keys()), author_set_list
+                    list(freq_singletons.keys()),
+                    author_set_list,
+                    support,
+                    pair_hash_dict,
                 ).items(),
             )
         )
@@ -252,13 +261,6 @@ def main():
         k += 1
 
     print(f"Max frequent itemsets: {max_itemset}")
-
-    # with open("singletons.pkl", "rb") as pkl_file:
-    #     singleton_dict = pickle.load(pkl_file)
-    #     freq_items = dict(
-    #         filter(lambda elem: elem[1] >= support, singleton_dict.items())
-    #     )
-    #     print(freq_items)
 
 
 if __name__ == "__main__":
