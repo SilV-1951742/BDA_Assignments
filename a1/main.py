@@ -150,61 +150,58 @@ def gen_counted_pairs(singletons, set_list, min_support, pair_hash):
 
     return pair_dict
 
+    # def gen_counted_tuples(previous_iteration, min_support, set_list):
+    #     k = 3
 
-# def gen_counted_tuples(previous_iteration, min_support, set_list):
-#     k = 3
+    #     candidate_tuples = []
+    #     candidate_dict = defaultdict()
 
-#     candidate_tuples = []
-#     candidate_dict = defaultdict()
+    #     current_tuples = previous_iteration.keys()
 
-#     current_tuples = previous_iteration.keys()
+    #     while len(current_tuples) != 0:
+    #         tuple_generator = gen_candidate_k_tuple(current_tuples, k, min_support)
 
-#     while len(current_tuples) != 0:
-#         tuple_generator = gen_candidate_k_tuple(current_tuples, k, min_support)
+    #         for comb in tuple_generator:
+    #             if comb not in candidate_tuples:
+    #                 # if k > 3:
+    #                 #     print(comb)
+    #                 candidate_tuples.append(comb)
 
-#         for comb in tuple_generator:
-#             if comb not in candidate_tuples:
-#                 # if k > 3:
-#                 #     print(comb)
-#                 candidate_tuples.append(comb)
+    # def expand_sets(previous_sets, k):
+    #     # Calculate occuring singletons in previous sets and form array
+    #     singletons = []
+    #     for previous_set in previous_sets:
+    #         for elem in previous_set:
+    #             if elem not in singletons:
+    #                 singletons.append(elem)
 
-# def expand_sets(previous_sets, k):
-#     # Calculate occuring singletons in previous sets and form array
-#     singletons = []
-#     for previous_set in previous_sets:
-#         for elem in previous_set:
-#             if elem not in singletons:
-#                 singletons.append(elem)
+    #     # Expand all sets from previous sets with a singleton
+    #     new_k_sets = []
+    #     for previous_set in previous_sets:
+    #         for singleton in singletons:
+    #             new_k_set = list(previous_set)
+    #             new_k_set.append(singleton)
+    #             new_k_set = frozenset(new_k_set)
+    #             if new_k_set not in new_k_sets and len(new_k_set) == k:
+    #                 new_k_sets.append(new_k_set)
 
-#     # Expand all sets from previous sets with a singleton
-#     new_k_sets = []
-#     for previous_set in previous_sets:
-#         for singleton in singletons:
-#             new_k_set = list(previous_set)
-#             new_k_set.append(singleton)
-#             new_k_set = frozenset(new_k_set)
-#             if new_k_set not in new_k_sets and len(new_k_set) == k:
-#                 new_k_sets.append(new_k_set)
-    
-#     # print(new_k_sets)
+    #     # print(new_k_sets)
 
-#     return new_k_sets
+    #     return new_k_sets
 
+    # def gen_candidate_k_tuple(singletons, min_support, k, previous_iteration = dict()):
+    #     """
+    #     Generator to calculate k sized tuples.
+    #     """
+    #     for comb in itertools.combinations(singletons, k):
+    #         for elem in comb:
+    #             if singletons[elem] < min_support:
+    #                 continue
+    #             if len(previous_iteration) > 0:
+    #                 print("Do something")
+    #         yield frozenset(comb)
 
-# def gen_candidate_k_tuple(singletons, min_support, k, previous_iteration = dict()):
-#     """
-#     Generator to calculate k sized tuples.
-#     """
-#     for comb in itertools.combinations(singletons, k):
-#         for elem in comb:
-#             if singletons[elem] < min_support:
-#                 continue
-#             if len(previous_iteration) > 0:
-#                 print("Do something")
-#         yield frozenset(comb)
-
-
-#def gen_counted_pairs(singletons, set_list, support):
+    # def gen_counted_pairs(singletons, set_list, support):
     """
     Function that creates a dictionary of counted pairs.
     """
@@ -239,7 +236,7 @@ def gen_counted_pairs(singletons, set_list, min_support, pair_hash):
     #                     else:
     #                         set_dict[set] = 1
 
-    #         if (len(set_dict) == 0): 
+    #         if (len(set_dict) == 0):
     #             k_sets_not_empty = False
 
     #         set_dict = {key:value for (key, value) in set_dict.items() if value >= support}
@@ -253,7 +250,6 @@ def gen_counted_pairs(singletons, set_list, min_support, pair_hash):
     #         # )
 
     #         print(set_dict)
-
 
     #         # print(freq_k_sets_dict)
     #         print("Amount of frequent " + str(current_k) + "-sized author groups found: " + str(len(set_dict)))
@@ -273,12 +269,14 @@ def gen_counted_tuples(singletons, set_dict, min_support, set_list):
 
     current_tuples = set_dict.items()
     candidate_dict = set_dict
-    
+
     while len(current_tuples) != 0:
         tuple_generator = gen_candidate_k_tuple(singletons, min_support, k)
         for comb in tuple_generator:
-            if comb not in candidate_tuples
-
+            if comb not in candidate_tuples:
+                candidate_dict[comb] = 1
+            else:
+                candidate_dict[comb] += 1
 
         for c_tuple in candidate_tuples:
             for elem in set_list:
@@ -312,13 +310,13 @@ def main():
 
     author_set_list = []
     freq_singletons = dict()
-#<<<<<<< HEAD
+    # <<<<<<< HEAD
     pair_hash_dict = defaultdict()
     support = 6
-# =======
-#     support = 15
-#     k = 3
-# >>>>>>> 0c92ff29e8e3f7efd4753eca0d3b85b9c6d96139
+    # =======
+    #     support = 15
+    #     k = 3
+    # >>>>>>> 0c92ff29e8e3f7efd4753eca0d3b85b9c6d96139
 
     try:
         gen_entry_string = entry_string(args.dataset, args.chunksize * 1024 * 1024)
