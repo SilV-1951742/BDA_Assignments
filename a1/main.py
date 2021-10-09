@@ -47,10 +47,6 @@ def entry_string(filename: str, chunk_size: int):
             previous = data[start_prev:]
 
 
-def entry_tree(xml_string: str):
-    return ET.fromstring(xml_string.replace("&", ""))
-
-
 def create_author_set(xml_string: str) -> frozenset:
     """
     This function takes an entry and returns the author set.
@@ -75,7 +71,7 @@ def create_testfile(dataset: str, chunksize: int):
     author_set_list = []
 
     with open("testfile.xml", "a") as f:
-        for _ in range(5000):
+        for _ in range(70000):
             tmp_entry = unescape(next(gen_entry_string))
             author_set_list.append(create_author_set(tmp_entry))
             f.write(tmp_entry)
@@ -97,12 +93,26 @@ def count_singletons(set_list):
     return singleton_dict
 
 
-def gen_candidate_k_tuple(previous_iteration, k):
+def gen_candidate_k_tuple(previous_iteration, k: int):
     """
     Generator to calculate k sized tuples.
     """
-    for comb in itertools.combinations(previous_iteration, k):
-        yield frozenset(comb)
+    for pairs in itertools.combinations(previous_iteration, 2):
+        if k > 2:
+            for comb in itertools.combinations(pairs[0].union(pairs[1]), k):
+                yield frozenset(comb)
+        else:
+            yield frozenset(pairs)
+
+
+# def tuple_combinations(previous_iteration, k: int):
+
+#     for k_set in itertools.combinations(total_tuple, k):
+#         total_tuple = frozenset.union(tuple1, tuple2)
+#         combos.append(frozenset(k_set))
+
+#     print(combos)
+#     return combos
 
 
 def gen_counted_pairs(singletons, set_list):
@@ -122,7 +132,6 @@ def gen_counted_pairs(singletons, set_list):
     for pair in pairs:
         for elem in set_list:
             if pair.issubset(elem):
-                # print(f"Found matching pair {pair} in {elem}")
                 if pair in pair_dict:
                     pair_dict[pair] += 1
                 else:
@@ -132,7 +141,6 @@ def gen_counted_pairs(singletons, set_list):
 
 
 def gen_counted_tuples(previous_iteration, min_support, set_list):
-    print("In gen")
     k = 3
 
     candidate_tuples = []
@@ -140,15 +148,16 @@ def gen_counted_tuples(previous_iteration, min_support, set_list):
 
     current_tuples = previous_iteration.keys()
     # current_dict = previous_iteration
-
-    print(len(current_tuples))
+    # print(current_tuples)
+    # print(len(current_tuples))
 
     while len(current_tuples) != 0:
         tuple_generator = gen_candidate_k_tuple(current_tuples, k)
 
         for comb in tuple_generator:
             if comb not in candidate_tuples:
-                print(comb)
+                # if k > 3:
+                #     print(comb)
                 candidate_tuples.append(comb)
 
         for c_tuple in candidate_tuples:
@@ -160,43 +169,20 @@ def gen_counted_tuples(previous_iteration, min_support, set_list):
                         candidate_dict[c_tuple] = 1
 
         freq_tuples = dict(
-            filter(
-                lambda elem: elem[1] >= min_support,
-                candidate_dict,
-            )
+            filter(lambda elem: elem[1] >= min_support, candidate_dict.items())
         )
 
-        print(freq_tuples)
-        print(f"Freq tuples for k = {k}")
+        if len(freq_tuples) > 0:
+            yield (freq_tuples)
 
-        yield (freq_tuples)
+        current_tuples = freq_tuples
+        candidate_tuples.clear()
+        candidate_dict.clear()
 
         k += 1
 
 
-# def apriori(singletons, min_support):
-#     k = 2
-
-
-def tuple_combinations(tuple1, tuple2, k):
-    print(tuple1, tuple2)
-    total_tuple = frozenset.union(tuple1, tuple2)
-    combos = []
-    print(total_tuple)
-
-    for k_set in itertools.combinations(total_tuple, k):
-        combos.append(frozenset(k_set))
-
-    print(combos)
-    return combos
-
-
 def main():
-    # set1 = frozenset(["name1", "name2"])
-    # set2 = frozenset(["name3", "name4"])
-
-    # tuple_combinations(set1, set2, 3)
-
     args = arg_parser.parse_args()
 
     if args.testfile:
@@ -205,23 +191,23 @@ def main():
 
     author_set_list = []
     freq_singletons = dict()
-    support = 4
+    support = 6
 
     try:
         gen_entry_string = entry_string(args.dataset, args.chunksize * 1024 * 1024)
         for entry in gen_entry_string:
             tmp_author_set = create_author_set(unescape(entry))
-            if len(tmp_author_set) != 0:
+            if len(tmp_author_set) >= 3:
                 author_set_list.append(tmp_author_set)
     except FileNotFoundError:
         print(f"Could not find file {args.dataset}")
 
     try:
-        print("Opening frequent singletons.")
+        print("Opening frequent singletons file.")
         with open("freq_singletons.pkl", "rb") as pkl_file:
             freq_singletons = pickle.load(pkl_file)
     except FileNotFoundError:
-        print("Can't open frequent singletons file")
+        print("Could not open frequent singletons file.")
         freq_singletons = dict(
             filter(
                 lambda elem: elem[1] >= support,
@@ -231,12 +217,13 @@ def main():
         with open("freq_singletons.pkl", "wb") as pkl_file:
             pickle.dump(freq_singletons, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
 
+    print(f"Size of author set list {len(author_set_list)}")
     print(f"Amount of freq singletons: {len(freq_singletons)}")
 
     freq_pairs = dict()
 
     try:
-        print("Opening pairs pickle file.")
+        print("Opening frequent pairs file.")
         with open("freq_pairs.pkl", "rb") as pkl_file:
             freq_pairs = pickle.load(pkl_file)
     except FileNotFoundError:
@@ -252,12 +239,19 @@ def main():
         with open("freq_pairs.pkl", "wb") as pkl_file:
             pickle.dump(freq_pairs, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
 
-    print("Generating triplets")
+    # print(f"Frequent pairs: {freq_pairs}")
+
+    # print("Generating triplets")
 
     tuple_generator = gen_counted_tuples(freq_pairs, support, author_set_list)
+    k = 3
+    max_itemset = dict()
+    for freq_itemset in tuple_generator:
+        print(f"{k}-tuple itemset: {freq_itemset}")
+        max_itemset = freq_itemset
+        k += 1
 
-    for _ in range(1):
-        next(tuple_generator)
+    print(f"Max frequent itemsets: {max_itemset}")
 
     # with open("singletons.pkl", "rb") as pkl_file:
     #     singleton_dict = pickle.load(pkl_file)
