@@ -9,7 +9,7 @@ import hashlib
 from typing import Final
 from collections import defaultdict
 
-HASH_BUCKETS: Final = 10000
+HASH_BUCKETS: Final = 100000
 
 entry_regex = re.compile(
     r"<(article|book|phdthesis|www|incollection|proceedings|inproceedings)[\s\S]*?<(\/article|\/book|\/phdthesis|\/www|\/incollection|\/proceedings|\/inproceedings)>"
@@ -109,46 +109,6 @@ def count_singletons(set_list):
                 pair_hash_dict[hash_tuple(comb)] += 1
 
     return singleton_dict, pair_hash_dict
-
-
-def gen_candidate_k_tuple(previous_iteration, k: int, min_support, pair_hash=dict()):
-    """
-    Generator to calculate k sized tuples.
-    """
-    for pairs in itertools.combinations(previous_iteration, 2):
-        if k > 2:
-            for comb in itertools.combinations(pairs[0].union(pairs[1]), k):
-                yield frozenset(comb)
-        else:
-            try:
-                if pair_hash[hash_tuple(pairs)] < min_support:
-                    continue
-                else:
-                    yield frozenset(pairs)
-            except KeyError:
-                continue
-
-
-def gen_counted_pairs(singletons, set_list, min_support, pair_hash):
-    """
-    Function that creates a dictionary of counted pairs.
-    """
-    pairs = []
-    pair_dict = defaultdict()
-
-    pair_generator = gen_candidate_k_tuple(singletons, 2, min_support, pair_hash)
-    for comb in pair_generator:
-        if comb not in pairs:
-            pairs.append(comb)
-
-    print("Generated pair candidates")
-
-    for pair in pairs:
-        for elem in set_list:
-            if pair.issubset(elem):
-                pair_dict[pair] += 1
-
-    return pair_dict
 
     # def gen_counted_tuples(previous_iteration, min_support, set_list):
     #     k = 3
@@ -261,27 +221,73 @@ def gen_counted_pairs(singletons, set_list, min_support, pair_hash):
     #         current_k += 1
 
 
-def gen_counted_tuples(singletons, set_dict, min_support, set_list):
+def gen_candidate_k_tuple(previous_iteration, k: int, min_support, pair_hash=dict()):
+    """
+    Generator to calculate k sized tuples.
+    """
+    for pairs in itertools.combinations(previous_iteration, 2):
+        if k > 2:
+            for comb in itertools.combinations(pairs[0].union(pairs[1]), k):
+                yield frozenset(comb)
+        else:
+            try:
+                if pair_hash[hash_tuple(pairs)] < min_support:
+                    continue
+                else:
+                    yield frozenset(pairs)
+            except KeyError:
+                continue
+
+
+def gen_counted_pairs(singletons, set_list, min_support, pair_hash):
+    """
+    Function that creates a dictionary of counted pairs.
+    """
+    pairs = []
+    pair_dict = dict()
+
+    pair_generator = gen_candidate_k_tuple(singletons, 2, min_support, pair_hash)
+    for comb in pair_generator:
+        if comb not in pairs:
+            pairs.append(comb)
+
+    print("Generated pair candidates")
+
+    for pair in pairs:
+        for elem in set_list:
+            if pair.issubset(elem):
+                if pair not in pair_dict:
+                    pair_dict[pair] = 1
+                else:
+                    pair_dict[pair] += 1
+
+    return pair_dict
+
+
+def gen_counted_tuples(previous_iteration, min_support, set_list):
     k = 3
 
     candidate_tuples = []
     candidate_dict = dict()
 
-    current_tuples = set_dict.items()
-    candidate_dict = set_dict
+    current_tuples = previous_iteration.keys()
 
     while len(current_tuples) != 0:
-        tuple_generator = gen_candidate_k_tuple(singletons, min_support, k)
+        tuple_generator = gen_candidate_k_tuple(current_tuples, k, min_support)
+
         for comb in tuple_generator:
             if comb not in candidate_tuples:
-                candidate_dict[comb] = 1
-            else:
-                candidate_dict[comb] += 1
+                # if k > 3:
+                #     print(comb)
+                candidate_tuples.append(comb)
 
         for c_tuple in candidate_tuples:
             for elem in set_list:
                 if c_tuple.issubset(elem):
-                    candidate_dict[c_tuple] += 1
+                    if c_tuple not in candidate_dict:
+                        candidate_dict[c_tuple] = 1
+                    else:
+                        candidate_dict[c_tuple] += 1
 
         freq_tuples = dict(
             filter(lambda elem: elem[1] >= min_support, candidate_dict.items())
@@ -311,7 +317,7 @@ def main():
     author_set_list = []
     freq_singletons = dict()
     # <<<<<<< HEAD
-    pair_hash_dict = defaultdict()
+    pair_hash_dict = dict()
     support = 6
     # =======
     #     support = 15
@@ -376,7 +382,7 @@ def main():
     k = 3
     max_itemset = dict()
     for freq_itemset in tuple_generator:
-        print(f"{k}-tuple itemset: {freq_itemset}")
+        # print(f"{k}-tuple itemset: {freq_itemset}")
         max_itemset = freq_itemset
         k += 1
 
