@@ -293,7 +293,13 @@ def gen_counted_tuples(previous_iteration, min_support, set_list):
             filter(lambda elem: elem[1] >= min_support, candidate_dict.items())
         )
 
+        max_freq_tuples = dict(
+            filter(lambda elem: elem[1] == max(list(freq_tuples.values())), freq_tuples.items())
+        )
+
         if len(freq_tuples) > 0:
+            print("\nk: " + str(k) + ", Max frequent tuples: \n")
+            print(max_freq_tuples)
             yield (freq_tuples)
 
         current_tuples = freq_tuples
@@ -318,7 +324,7 @@ def main():
     freq_singletons = dict()
     # <<<<<<< HEAD
     pair_hash_dict = dict()
-    support = 6
+    support = 4
     # =======
     #     support = 15
     #     k = 3
@@ -385,8 +391,6 @@ def main():
         # print(f"{k}-tuple itemset: {freq_itemset}")
         max_itemset = freq_itemset
         k += 1
-
-    print(f"Max frequent itemsets: {max_itemset}")
 
 
 if __name__ == "__main__":
