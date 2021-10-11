@@ -99,126 +99,46 @@ def count_singletons(set_list):
     return singleton_dict
 
 
-def expand_sets(previous_sets, k):
-    # Calculate occuring singletons in previous sets and form array
-    singletons = []
-    for previous_set in previous_sets:
-        for elem in previous_set:
-            if elem not in singletons:
-                singletons.append(elem)
-
-    # Expand all sets from previous sets with a singleton
-    new_k_sets = []
-    for previous_set in previous_sets:
-        for singleton in singletons:
-            new_k_set = list(previous_set)
-            new_k_set.append(singleton)
-            new_k_set = frozenset(new_k_set)
-            if new_k_set not in new_k_sets and len(new_k_set) == k:
-                new_k_sets.append(new_k_set)
-    
-    # print(new_k_sets)
-
-    return new_k_sets
+def calculateMaxFrequentItemsets(countedOccurrences):
+    maxFrequentItemsets = dict(
+        filter(
+            lambda elem: elem[1] == max(countedOccurrences.values()), countedOccurrences.items()
+        )
+    )
+    return maxFrequentItemsets
 
 
-# def gen_candidate_k_tuple(singletons, min_support, k, previous_iteration = dict()):
-#     """
-#     Generator to calculate k sized tuples.
-#     """
-#     for comb in itertools.combinations(singletons, k):
-#         for elem in comb:
-#             if singletons[elem] < min_support:
-#                 continue
-#             if len(previous_iteration) > 0:
-#                 print("Do something")
-#         yield frozenset(comb)
+def countOccurrences(combinations, author_set_list):
+    countedOccurrences = dict()
+    for authorSet in author_set_list:
+        for combination in combinations:
+            if authorSet.issubset(combination):
+                if combination in countedOccurrences:
+                    countedOccurrences[combination] += 1
+                else:
+                    countedOccurrences[combination] = 1
+    return countedOccurrences
 
 
-def gen_counted_pairs(singletons, set_list, support):
-    """
-    Function that creates a dictionary of counted pairs.
-    """
-    sets = singletons
-    k_sets_not_empty = True
-    current_k = 2
-
-    while (k_sets_not_empty):
-
-        print("Current k: " + str(current_k))
-
-        if os.path.exists("sets_" + str(current_k) + ".pkl"):
-            print("Opening " + str(current_k) + " pairs pickle file.")
-            with open("sets_" + str(current_k) + ".pkl", "rb") as pkl_file:
-                set_dict = pickle.load(pkl_file)
-        else:
-            # Generate sets of size k
-            sets = expand_sets(sets, current_k)
-
-            print("Generated " + str(current_k) + "-set candidates")
-
-            # print(set_list)
-            # print("\n\n\n")
-
-            set_dict = dict()
-            for set in sets:
-                for elem in set_list:
-                    if set.issubset(elem):
-                        # print(f"Found matching pair {pair} in {elem}")
-                        if set in set_dict:
-                            set_dict[set] += 1
-                        else:
-                            set_dict[set] = 1
-
-            if (len(set_dict) == 0): 
-                k_sets_not_empty = False
-
-            set_dict = {key:value for (key, value) in set_dict.items() if value >= support}
-
-            # set_dict = dict(
-            #     filter(
-            #         lambda elem: elem[1] >= support,
-            #         # gen_counted_pairs(freq_singletons, 4, author_set_list).items()
-            #         set_dict.items()
-            #     )
-            # )
-
-            print(set_dict)
+def calculateSupportedAuthorSets(authorSets, support):
+    return dict(
+        filter(
+            lambda elem: elem[1] >= support,
+            authorSets.items(),
+        )
+    )
 
 
-            # print(freq_k_sets_dict)
-            print("Amount of frequent " + str(current_k) + "-sized author groups found: " + str(len(set_dict)))
-
-            with open("sets_" + str(current_k) + ".pkl", "wb") as pkl_file:
-                pickle.dump(set_dict, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
-
-            sets = list(set_dict.keys())
-            current_k += 1
-
-
-# def gen_counted_tuples(singletons, set_dict, min_support, set_list):
-#     k = 3
-
-#     candidate_tuples = []
-#     candidate_dict = dict()
-
-#     current_tuples = set_dict.items()
-#     candidate_dict = set_dict
-    
-#     while len(current_tuples) != 0:
-#         tuple_generator = gen_candidate_k_tuple(singletons, min_support, k)
-#         for comb in tuple_generator:
-#             if comb not in candidate_tuples
-
-# def apriori(singletons, min_support):
-#     k = 2
+def makeCombinations(author_set, k):
+    combinations = []
+    valid_combinations = itertools.combinations(author_set, k)
+    for combination in valid_combinations:
+        if (len(combination) == k):
+            combinations.append(frozenset(combination))
+    return combinations
 
 
 def main():
-
-    # print(expand_sets([frozenset(("a", "b")), frozenset(("a", "c")), frozenset(("c", "d")), frozenset(("e", "f"))], 2))
-    # print(expand_sets([frozenset(("a", "b")), frozenset(("a", "c")), frozenset(("c", "d")), frozenset(("e", "f"))], 3))
-
     args = arg_parser.parse_args()
 
     if args.testfile:
@@ -226,9 +146,7 @@ def main():
         exit()
 
     author_set_list = []
-    freq_singletons = dict()
-    support = 15
-    k = 3
+    support = 3
 
     try:
         gen_entry_string = entry_string(args.dataset, args.chunksize * 1024 * 1024)
@@ -238,7 +156,7 @@ def main():
                 author_set_list.append(tmp_author_set)
     except FileNotFoundError:
         print(f"Could not find file {args.dataset}")
-
+    
     try:
         print("Opening frequent singletons.")
         with open("freq_singletons.pkl", "rb") as pkl_file:
@@ -251,36 +169,34 @@ def main():
                 count_singletons(author_set_list).items(),
             )
         )
-        with open("freq_singletons.pkl", "wb") as pkl_file:
-            pickle.dump(freq_singletons, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
-
-    print(f"Amount of freq singletons: {len(freq_singletons)}")
-
-    gen_counted_pairs([frozenset([x]) for x in list(freq_singletons.keys())], author_set_list, support)
-
-    # freq_pairs = dict(
-    #     filter(
-    #         lambda elem: elem[1] >= support,
-    #         # gen_counted_pairs(freq_singletons, 4, author_set_list).items()
-    #         gen_counted_pairs([frozenset([x]) for x in list(freq_singletons.keys())], author_set_list, 3).items(),
-    #     )
-    # )
-
-    # print(freq_pairs)
 
 
+    print("Max frequent itemsets, size: 1: ", end='')
+    print(calculateMaxFrequentItemsets(freq_singletons))
 
+    k = 2
 
+    while True:
+        combinations = dict()
+        for author_set in author_set_list:
+            if len(author_set) >= k:
+                for combination in makeCombinations(author_set, k):
+                    if combination in combinations:
+                        combinations[combination] += 1
+                    else:
+                        combinations[combination] = 1
 
+        supportedAuthorSets = calculateSupportedAuthorSets(combinations, support)
+        
+        print("Max frequent itemsets, size " + str(k) + " :" , end='')
+        print(calculateMaxFrequentItemsets(supportedAuthorSets))
 
+        k += 1
 
-    # with open("singletons.pkl", "rb") as pkl_file:
-    #     singleton_dict = pickle.load(pkl_file)
-    #     freq_items = dict(
-    #         filter(lambda elem: elem[1] >= support, singleton_dict.items())
-    #     )
-    #     print(freq_items)
+        if len(supportedAuthorSets) == 0:
+            break
 
+    print("done")
 
 if __name__ == "__main__":
     try:
