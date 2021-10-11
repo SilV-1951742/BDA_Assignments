@@ -13,3 +13,5 @@ Het inlezen van de dataset in het XML-formaat wordt gedaan met behulp van regexe
 
 
 De dataset wordt ook niet in een keer ingelezen, maar in chunks van /x/ megabytes, waar /x/ een commandline argument is.
+
+Deze werkt op subsets van de grote dataset. We hebben dit algoritme geprobeerd te runnen op de gehele dataset, maar dit duurde veel te lang.

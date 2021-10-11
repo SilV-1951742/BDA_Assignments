@@ -80,7 +80,7 @@ def create_testfile(dataset: str, chunksize: int):
 
     with open("testfile.xml", "a") as f:
 
-        for _ in range(70000):
+        for _ in range(200000):
             tmp_entry = unescape(next(gen_entry_string))
             author_set_list.append(create_author_set(tmp_entry))
             f.write(tmp_entry)
@@ -339,46 +339,31 @@ def main():
     except FileNotFoundError:
         print(f"Could not find file {args.dataset}")
 
-    try:
-        print("Opening frequent singletons file.")
-        with open("freq_singletons.pkl", "rb") as pkl_file:
-            freq_singletons = pickle.load(pkl_file)
-    except FileNotFoundError:
-        print("Could not open frequent singletons file.")
-        singletons, pair_hash_dict = count_singletons(author_set_list)
-        freq_singletons = dict(
-            filter(
-                lambda elem: elem[1] >= support,
-                singletons.items(),
-            )
+    singletons, pair_hash_dict = count_singletons(author_set_list)
+    freq_singletons = dict(
+        filter(
+            lambda elem: elem[1] >= support,
+            singletons.items(),
         )
-        with open("freq_singletons.pkl", "wb") as pkl_file:
-            pickle.dump(freq_singletons, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
+    )
 
     print(f"Size of author set list {len(author_set_list)}")
     print(f"Amount of freq singletons: {len(freq_singletons)}")
 
     freq_pairs = dict()
 
-    try:
-        print("Opening frequent pairs file.")
-        with open("freq_pairs.pkl", "rb") as pkl_file:
-            freq_pairs = pickle.load(pkl_file)
-    except FileNotFoundError:
-        print("Could not open pairs pickle file.")
-        freq_pairs = dict(
-            filter(
-                lambda elem: elem[1] >= support,
-                gen_counted_pairs(
-                    list(freq_singletons.keys()),
-                    author_set_list,
-                    support,
-                    pair_hash_dict,
-                ).items(),
-            )
+    
+    freq_pairs = dict(
+        filter(
+            lambda elem: elem[1] >= support,
+            gen_counted_pairs(
+                list(freq_singletons.keys()),
+                author_set_list,
+                support,
+                pair_hash_dict,
+            ).items(),
         )
-        with open("freq_pairs.pkl", "wb") as pkl_file:
-            pickle.dump(freq_pairs, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
+    )
 
     # print(f"Frequent pairs: {freq_pairs}")
 
@@ -388,7 +373,9 @@ def main():
     k = 3
     max_itemset = dict()
     for freq_itemset in tuple_generator:
-        # print(f"{k}-tuple itemset: {freq_itemset}")
+        print(f"{k}-tuple itemset: {freq_itemset}")
+        print()
+        print()
         max_itemset = freq_itemset
         k += 1
 
