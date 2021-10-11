@@ -7,8 +7,12 @@ import itertools
 import hashlib
 from typing import Final
 from collections import defaultdict
+#from multiprocessing import Pool
+import numpy as np
 
 HASH_BUCKETS: Final = 500000
+SETSIZE_CUTOFF: Final = 4
+
 
 entry_regex = re.compile(
     r"<(article|book|phdthesis|www|incollection|proceedings|inproceedings)[\s\S]*?<(\/article|\/book|\/phdthesis|\/www|\/incollection|\/proceedings|\/inproceedings)>"
@@ -82,7 +86,7 @@ def create_testfile(dataset: str, chunksize: int):
 
     with open("testfile.xml", "a") as f:
 
-        for _ in range(100000):
+        for _ in range(200000):
             tmp_entry = unescape(next(gen_entry_string))
             author_set_list.append(create_author_set(tmp_entry))
             f.write(tmp_entry)
@@ -258,16 +262,17 @@ def gen_counted_pairs(singletons, set_list, min_support, pair_hash):
 
     for pair in pairs:
         for elem in set_list:
-            if pair.issubset(elem):
-                if pair not in pair_dict:
-                    pair_dict[pair] = 1
-                else:
-                    pair_dict[pair] += 1
+            if len(elem) > len(pair):
+                if pair.issubset(elem):
+                    if pair not in pair_dict:
+                        pair_dict[pair] = 1
+                    else:
+                        pair_dict[pair] += 1
 
     return pair_dict
 
 
-def gen_counted_tuples(previous_iteration, min_support, set_list):
+def gen_counted_tuples(previous_iteration, min_support: int, set_list):
     k = 3
 
     candidate_tuples = []
@@ -280,29 +285,28 @@ def gen_counted_tuples(previous_iteration, min_support, set_list):
 
         for comb in tuple_generator:
             if comb not in candidate_tuples:
-                # if k > 3:
-                #     print(comb)
                 candidate_tuples.append(comb)
 
         for c_tuple in candidate_tuples:
             for elem in set_list:
-                if c_tuple.issubset(elem):
-                    if c_tuple not in candidate_dict:
-                        candidate_dict[c_tuple] = 1
-                    else:
-                        candidate_dict[c_tuple] += 1
+                if len(elem) > len(c_tuple):
+                    if c_tuple.issubset(elem):
+                        if c_tuple not in candidate_dict:
+                            candidate_dict[c_tuple] = 1
+                        else:
+                            candidate_dict[c_tuple] += 1
 
         freq_tuples = dict(
             filter(lambda elem: elem[1] >= min_support, candidate_dict.items())
         )
 
-        max_freq_tuples = dict(
-            filter(lambda elem: elem[1] == max(list(freq_tuples.values())), freq_tuples.items())
-        )
+        # max_freq_tuples = dict(
+        #     filter(lambda elem: elem[1] == max(list(freq_tuples.values())), freq_tuples.items())
+        # )
 
         if len(freq_tuples) > 0:
-            print("\nk: " + str(k) + ", Max frequent tuples: \n")
-            print(max_freq_tuples)
+            # print("\nk: " + str(k) + ", Max frequent tuples: \n")
+            # print(max_freq_tuples)
             yield (freq_tuples)
 
         current_tuples = freq_tuples
@@ -319,11 +323,13 @@ def main():
         create_testfile(args.dataset, args.chunksize)
         exit()
 
+    print("Assignment 1 BDA from Sil Vaes and Maarten Evenepoel.")
+
     author_set_list = []
     freq_singletons = dict()
     # <<<<<<< HEAD
     pair_hash_dict = dict()
-    support = 4
+    support = 8
     # =======
     #     support = 15
     #     k = 3
@@ -333,10 +339,12 @@ def main():
         gen_entry_string = entry_string(args.dataset, args.chunksize * 1024 * 1024)
         for entry in gen_entry_string:
             tmp_author_set = create_author_set(unescape(entry))
-            if len(tmp_author_set) >= 3:
+            if len(tmp_author_set) > SETSIZE_CUTOFF:
                 author_set_list.append(tmp_author_set)
     except FileNotFoundError:
         print(f"Could not find file {args.dataset}")
+
+    print("Dataset loaded.")
 
     singletons, pair_hash_dict = count_singletons(author_set_list)
     freq_singletons = dict(
@@ -350,7 +358,6 @@ def main():
     print(f"Amount of frequent singletons: {len(freq_singletons)}")
 
     freq_pairs = dict()
-
     
     freq_pairs = dict(
         filter(
@@ -377,6 +384,8 @@ def main():
         print()
         max_itemset = freq_itemset
         k += 1
+
+    print(f"Maximal frequent itemset: {max_itemset}")
 
 
 if __name__ == "__main__":
