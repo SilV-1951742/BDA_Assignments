@@ -82,7 +82,7 @@ def create_testfile(dataset: str, chunksize: int):
 
     with open("testfile.xml", "a") as f:
 
-        for _ in range(150000):
+        for _ in range(100000):
             tmp_entry = unescape(next(gen_entry_string))
             author_set_list.append(create_author_set(tmp_entry))
             f.write(tmp_entry)
