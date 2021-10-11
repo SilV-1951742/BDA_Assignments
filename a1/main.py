@@ -3,13 +3,12 @@ import re
 from html import unescape
 import argparse
 import os
-import pickle
 import itertools
 import hashlib
 from typing import Final
 from collections import defaultdict
 
-HASH_BUCKETS: Final = 100000
+HASH_BUCKETS: Final = 500000
 
 entry_regex = re.compile(
     r"<(article|book|phdthesis|www|incollection|proceedings|inproceedings)[\s\S]*?<(\/article|\/book|\/phdthesis|\/www|\/incollection|\/proceedings|\/inproceedings)>"
@@ -28,7 +27,7 @@ arg_parser.add_argument(
     "--make_testfile",
     action="store_true",
     dest="testfile",
-    help="Create a test dataset of 10000 entries.",
+    help="Create a test dataset of x entries.",
 )
 
 
@@ -38,6 +37,7 @@ def hash_tuple(tuple_object):
 
 
 def entry_string(filename: str, chunk_size: int):
+#def entry_string(filename, chunk_size):
     """
     This function takes a filename and chunk size an return a generator
     that yields entries in the database.
@@ -56,6 +56,7 @@ def entry_string(filename: str, chunk_size: int):
 
 
 def create_author_set(xml_string: str) -> frozenset:
+#def create_author_set(xml_string):
     """
     This function takes an entry and returns the author set.
     """
@@ -66,6 +67,7 @@ def create_author_set(xml_string: str) -> frozenset:
 
 
 def create_testfile(dataset: str, chunksize: int):
+#def create_testfile(dataset, chunksize):
     """
     This function creates a testfile with 10000 entries to test
     a maximal frequent itemset algorithm.
@@ -80,7 +82,7 @@ def create_testfile(dataset: str, chunksize: int):
 
     with open("testfile.xml", "a") as f:
 
-        for _ in range(200000):
+        for _ in range(150000):
             tmp_entry = unescape(next(gen_entry_string))
             author_set_list.append(create_author_set(tmp_entry))
             f.write(tmp_entry)
@@ -222,6 +224,7 @@ def count_singletons(set_list):
 
 
 def gen_candidate_k_tuple(previous_iteration, k: int, min_support, pair_hash=dict()):
+#def gen_candidate_k_tuple(previous_iteration, k, min_support, pair_hash=dict()):
     """
     Generator to calculate k sized tuples.
     """
@@ -304,10 +307,6 @@ def gen_counted_tuples(previous_iteration, min_support, set_list):
 
 
 def main():
-
-    # print(expand_sets([frozenset(("a", "b")), frozenset(("a", "c")), frozenset(("c", "d")), frozenset(("e", "f"))], 2))
-    # print(expand_sets([frozenset(("a", "b")), frozenset(("a", "c")), frozenset(("c", "d")), frozenset(("e", "f"))], 3))
-
     args = arg_parser.parse_args()
 
     if args.testfile:
@@ -342,7 +341,7 @@ def main():
     )
 
     print(f"Size of author set list {len(author_set_list)}")
-    print(f"Amount of freq singletons: {len(freq_singletons)}")
+    print(f"Amount of frequent singletons: {len(freq_singletons)}")
 
     freq_pairs = dict()
 
@@ -359,9 +358,9 @@ def main():
         )
     )
 
-    # print(f"Frequent pairs: {freq_pairs}")
-
-    # print("Generating triplets")
+    print(f"Frequent pairs: {freq_pairs}")
+    print()
+    print()
 
     tuple_generator = gen_counted_tuples(freq_pairs, support, author_set_list)
     k = 3
