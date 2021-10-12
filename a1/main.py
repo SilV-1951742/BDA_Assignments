@@ -32,9 +32,9 @@ arg_parser.add_argument(
 )
 
 
-def hash_tuple(tuple_object):
-    tuple_bytes = bytearray(str(tuple_object), "utf-8")
-    return int(hashlib.sha256(tuple_bytes).hexdigest(), 16) % HASH_BUCKETS
+def hash_set(set_object):
+    set_bytes = bytearray(str(set_object), "utf-8")
+    return int(hashlib.sha256(set_bytes).hexdigest(), 16) % HASH_BUCKETS
 
 
 def entry_string(filename: str, chunk_size: int):
@@ -79,7 +79,7 @@ def create_testfile(dataset: str, chunksize: int):
     author_set_list = []
 
     with open("testfile.xml", "a") as f:
-        for _ in range(500000):
+        for _ in range(1500000):
             tmp_entry = unescape(next(gen_entry_string))
             author_set_list.append(create_author_set(tmp_entry))
             f.write(tmp_entry)
@@ -100,7 +100,7 @@ def count_singletons(set_list):
             else:
                 singleton_dict[elem] = 1
         for comb in itertools.combinations(sets, 2):
-            pair_hash = hash_tuple(comb)
+            pair_hash = hash_set(comb)
             if pair_hash not in hash_dict:
                 hash_dict[pair_hash] = 1
             else:
@@ -148,7 +148,7 @@ def makeCombinations(author_set, k):
     return combinations
 
 
-def validTuple(previous_iteration, k: int, candidate):
+def validSet(previous_iteration, k: int, candidate):
     for min_combo in itertools.combinations(candidate, k - 1):
         if frozenset(min_combo) not in previous_iteration:
             return False
@@ -156,13 +156,12 @@ def validTuple(previous_iteration, k: int, candidate):
 
 
 def generateBigKCandidate(previous_iteration, k: int):
-#def gen_candidate_k_tuple(previous_iteration, k, min_support, pair_hash=dict()):
     """
-    Generates k-tuple candidates, more memory efficient but slower for big k values
+    Generates k-set candidates, more memory efficient but slower for big k values
     """
-    for tuple_pair in itertools.combinations(previous_iteration, 2):
-        for combination in itertools.combinations(tuple_pair[0].union(tuple_pair[1]), k):
-            if validTuple(previous_iteration, k, combination) == True:
+    for set_pair in itertools.combinations(previous_iteration, 2):
+        for combination in itertools.combinations(set_pair[0].union(set_pair[1]), k):
+            if validSet(previous_iteration, k, combination) == True:
                 yield frozenset(combination)
 
             
@@ -185,8 +184,8 @@ def main():
         exit()
 
     author_set_list = []
-    current_hash_dict = dict()
-    support = 6
+    #current_hash_dict = dict()
+    support = 25
 
     try:
         gen_entry_string = entry_string(args.dataset, args.chunksize * 1024 * 1024)
@@ -199,7 +198,7 @@ def main():
 
     print("Dataset loaded.")
 
-    singletons, current_hash_dict = count_singletons(author_set_list)
+    singletons, _ = count_singletons(author_set_list)
     freq_singletons = dict(
         filter(
             lambda elem: elem[1] >= support,
@@ -230,7 +229,7 @@ def main():
             if len(author_set) >= k:
                 for combination in makeCombinations(author_set, k):
                     try:
-                        #if current_hash_dict[hash_tuple(combination)] > support:
+                        #if current_hash_dict[hash_set(combination)] > support:
                         if combination in combinations:
                             combinations[combination] += 1
                         else:
@@ -240,7 +239,7 @@ def main():
                     
                 # if len(author_set) > k and k < 3:
                 #     for combination in makeCombinations(author_set, k + 1):
-                #         comb_hash = hash_tuple(combination)
+                #         comb_hash = hash_set(combination)
                 #         if comb_hash in next_hash_dict:
                 #             next_hash_dict[comb_hash] += 1
                 #         else:
@@ -265,11 +264,11 @@ def main():
         
     while supportedAuthorSets:
         combinations = dict()
-        candidateTuples = makeCombinationsBigK(supportedAuthorSets.keys(), k)
+        candidateSets = makeCombinationsBigK(supportedAuthorSets.keys(), k)
         print("Generated candidates")
         for author_set in np_author_set_list:
             if len(author_set) >= k:
-                for candidate in candidateTuples:
+                for candidate in candidateSets:
                     if candidate.issubset(author_set):
                         if candidate in combinations:
                             combinations[candidate] += 1 
@@ -290,7 +289,7 @@ def main():
         # if len(supportedAuthorSets) == 0:
         #     break
 
-    print(f"The maximal frequent items sets are {k_res}-tuples:")
+    print(f"The maximal frequent items sets are {k_res}-sets:")
     print(maximal_f_itemsets)
 
     print("done")
