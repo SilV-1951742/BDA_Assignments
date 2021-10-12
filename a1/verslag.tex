@@ -40,7 +40,7 @@ We hebben doorheen de loop van het project verschillende iteraties van onze impl
 
 Onze tweede iteratie bestond eruit om voor het berekenen van candidate sets met grootte k=2 de paren meteen af te leiden uit de brondata. De nieuwe implementatie ging voor het construeren van candidate paren gaat in de brondata kijken wanneer een publicatie 2 of meer auteurs had. Indien dit het geval is, zal hij alle mogelijke subsets van auteurs van grootte 2 uit die publicaties genereren. Door enkel paren te generen uit publicaties die ook echt 2 of meer auteurs hebben worden er een hele hoop candidate sets niet gegenereerd die anders gegarandeerd nooit samen zouden voorkomen. Dit was een zeer grote tijds- en geheugenbesparing in het algoritme. Onze nieuwe implementatie was nu veel sneller, maar had nog steeds moeite met te grote brondata.\\
 
-Een laatste optimalisatie die we hebben toegevoegd is het hashen van candidate sets naar buckets zoals beschreven in het PCY algoritme. Met deze laatste optimalisatie kregen we het algoritme gedraaid op een dataset ter grootte van 1.5 miljoen publicaties. Dit is ongeveer de helft van de volledige DBLP dataset. Het algoritme gebruikt hier op zijn piek 13GB geheugen. Aangezien we slechts met 8GB ramgeheugen zitten en 5GB swapgeheugen, wordt het proces voornamelijk sterk vertraagd door door het swappen van data tussen de swap-space en het RAM geheugen. 
+Een laatste optimalisatie die we hebben toegevoegd is het hashen van candidate sets naar buckets zoals beschreven in het PCY algoritme. Met deze laatste optimalisatie kregen we het algoritme gedraaid op een dataset ter grootte van 1.5 miljoen publicaties. Dit is ongeveer de helft van de volledige DBLP dataset. Als we een grotere dataset gebruikten gebruikt het algoritme hier op zijn piek 13GB geheugen. Aangezien we slechts met 8GB ramgeheugen zitten en 5GB swapgeheugen hadden, wordt het proces voornamelijk sterk vertraagd door door het swappen van data tussen de swap-space en het RAM geheugen. 
 
 
 \section{Resultaten}
@@ -56,13 +56,13 @@ Waar \{\{dataset\}\} en \{\{chunk\_size\}\} het bestand dat de dataset bevat en 
 We hebben op bovenstaande manier aan kleinere dataset aangemaakt uit de dblp dataset van grootte 1.5 miljoen publicaties. met volgend commando:
 
 \begin{verbatim}
-$ python3 main.py --make_testfile dblp.xml 1000 
+$ python3 main.py dblp.xml 1000 --make_testfile
 \end{verbatim}
 
 Vervolgens kan het algoritme worden uitgevoerd op de gegenereerde kleinere dataset met behulp van volgend commando:
 
 \begin{verbatim}
-$ python3 main.py testfile.xml 
+$ python3 main.py testfile.xml 1000
 \end{verbatim}
 
 In de output van ons algoritme krijgen we vervolgens te zien dat de maximal frequent itemsets grootte k=9 hebben. Als support hebben we s=15 gebruikt. Een voorbeeld van een dergelijke itemset is de volgende verzameling auteurs: 
