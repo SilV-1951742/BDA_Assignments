@@ -1,0 +1,53 @@
+% Created 2021-10-12 Tue 18:10
+% Intended LaTeX compiler: pdflatex
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[sfdefault]{biolinum}
+\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=true,factor=1100,stretch=10,shrink=10]{microtype}
+\author{Sil Vaes en Maarten Evenepoel}
+\date{\today}
+\title{Verslag BDA opdracht 1}
+\hypersetup{
+ pdfauthor={Sil Vaes en Maarten Evenepoel},
+ pdftitle={Verslag BDA opdracht 1},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 29.0.50 (Org mode 9.5)}, 
+ pdflang={English}}
+\begin{document}
+
+\maketitle
+\setlength\parindent{0pt}
+
+In deze opdracht was de bedoeling dat we een maximal frequent itemset algoritme ging implementeren. Hier hebben we het a-priori algoritme met hashing geïmplementeerd, dus het PCY algoritme.\\
+
+
+Het inlezen van de dataset in het XML-formaat wordt gedaan met behulp van regexes, dus de XML library in de standard library van Python is niet gebruikt. We hebben bewust deze keuze gemaakt omdat dit ons eenvoudiger leek, want we moesten enkel de entries tussen bepaalde tags matchen en dan enkel the authors. Dus we zijn tot de conclusie gekomen dat een hele XML parser wat overkill was.\\
+
+De dataset wordt ook niet in een keer ingelezen, maar in chunks van \emph{x} megabytes, waar \emph{x} een commandline argument is.
+
+Het programma wordt als volgt opgeroepen:
+
+\begin{verbatim}
+python main.py {{dataset}}.xml {{chunk_size}}
+\end{verbatim}
+
+
+Waar \{\{dataset\}\} en \{\{chunk\_size\}\} het bestand dat de dataset bevat en de chunk size waarmee het bestand wordt ongelezen zijn respectievelijk. Ook kan men een optionele \texttt{-{}-make\textbackslash{}\_testfile} flag toevoegen om een kleinere testfile van de grotere \{\{dataset\}\} file te maken.\\
+
+Bij \emph{k}'s van één tot en met drie wordt er een ander algoritme gebruikt om kandidaten te vinden bij \emph{k}'s van hoger dan drie. Hier is voor gekozen omdat in praktijk het snelle algoritme te geheugeninefficiënt bleek te zijn en het meer geheugenefficiënt algoritme te traag. Dus hebben we besloten een compris te maken aan de hand van emprische ervaring.\\
+
+Het programma dat geschreven is in deze assignment werkt op kleinere subsets van de dataset, we hebben het geprobeerd te runnen op de gehele dataset, maar het geheugen van onze laptop geraakten te snel vol. Onze laptops hadden maar een geheugen van 8 GB. We hebben het geprobeerd te optimalisen met behulp van hashing. Dit verbeterde de situatie, maar het geheugen geraakte alsnog vol.\\
+\end{document}

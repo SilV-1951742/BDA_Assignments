@@ -9,7 +9,7 @@ import hashlib
 from typing import Final
 
 
-HASH_BUCKETS: Final = 100000
+HASH_BUCKETS: Final = 1000000
 
 entry_regex = re.compile(
     r"<(article|book|phdthesis|www|incollection|proceedings|inproceedings)[\s\S]*?<(\/article|\/book|\/phdthesis|\/www|\/incollection|\/proceedings|\/inproceedings)>"
@@ -79,7 +79,7 @@ def create_testfile(dataset: str, chunksize: int):
     author_set_list = []
 
     with open("testfile.xml", "a") as f:
-        for _ in range(2000000):
+        for _ in range(500000):
             tmp_entry = unescape(next(gen_entry_string))
             author_set_list.append(create_author_set(tmp_entry))
             f.write(tmp_entry)
@@ -186,7 +186,7 @@ def main():
 
     author_set_list = []
     current_hash_dict = dict()
-    support = 10
+    support = 6
 
     try:
         gen_entry_string = entry_string(args.dataset, args.chunksize * 1024 * 1024)
@@ -224,30 +224,30 @@ def main():
     while k <= 3:
         combinations = dict()
 
-        next_hash_dict = dict()
+        # next_hash_dict = dict()
         
         for author_set in np_author_set_list:
             if len(author_set) >= k:
                 for combination in makeCombinations(author_set, k):
                     try:
-                        if current_hash_dict[hash_tuple(combination)] > support:
-                            if combination in combinations:
-                                combinations[combination] += 1
-                            else:
-                                combinations[combination] = 1
+                        #if current_hash_dict[hash_tuple(combination)] > support:
+                        if combination in combinations:
+                            combinations[combination] += 1
+                        else:
+                            combinations[combination] = 1
                     except KeyError:
                         continue
                     
-                if len(author_set) > k and k < 3:
-                    for combination in makeCombinations(author_set, k + 1):
-                        comb_hash = hash_tuple(combination)
-                        if comb_hash in next_hash_dict:
-                            next_hash_dict[comb_hash] += 1
-                        else:
-                            next_hash_dict[comb_hash] = 1
+                # if len(author_set) > k and k < 3:
+                #     for combination in makeCombinations(author_set, k + 1):
+                #         comb_hash = hash_tuple(combination)
+                #         if comb_hash in next_hash_dict:
+                #             next_hash_dict[comb_hash] += 1
+                #         else:
+                #             next_hash_dict[comb_hash] = 1
 
-        current_hash_dict = next_hash_dict.copy()
-        next_hash_dict.clear()
+        # current_hash_dict = next_hash_dict.copy()
+        # next_hash_dict.clear()
         supportedAuthorSets = calculateSupportedAuthorSets(combinations, support)
 
         if(supportedAuthorSets):
@@ -266,7 +266,7 @@ def main():
     while supportedAuthorSets:
         combinations = dict()
         candidateTuples = makeCombinationsBigK(supportedAuthorSets.keys(), k)
-
+        print("Generated candidates")
         for author_set in np_author_set_list:
             if len(author_set) >= k:
                 for candidate in candidateTuples:
@@ -275,7 +275,7 @@ def main():
                             combinations[candidate] += 1 
                         else:
                             combinations[candidate] = 1
-
+        print("Counted candidates")
         supportedAuthorSets = calculateSupportedAuthorSets(combinations, support)
 
         if(supportedAuthorSets):
