@@ -1,11 +1,15 @@
 from functools import partial
 import re
-import xml.etree.ElementTree as ET
 from html import unescape
 import argparse
 import os
-import pickle
 import itertools
+import numpy as np
+import hashlib
+from typing import Final
+
+
+HASH_BUCKETS: Final = 100000
 
 entry_regex = re.compile(
     r"<(article|book|phdthesis|www|incollection|proceedings|inproceedings)[\s\S]*?<(\/article|\/book|\/phdthesis|\/www|\/incollection|\/proceedings|\/inproceedings)>"
@@ -28,6 +32,11 @@ arg_parser.add_argument(
 )
 
 
+def hash_tuple(tuple_object):
+    tuple_bytes = bytearray(str(tuple_object), "utf-8")
+    return int(hashlib.sha256(tuple_bytes).hexdigest(), 16) % HASH_BUCKETS
+
+
 def entry_string(filename: str, chunk_size: int):
     """
     This function takes a filename and chunk size an return a generator
@@ -44,10 +53,6 @@ def entry_string(filename: str, chunk_size: int):
                 start_prev = result.end()
                 yield result.group(0)
             previous = data[start_prev:]
-
-
-def entry_tree(xml_string: str):
-    return ET.fromstring(xml_string.replace("&", ""))
 
 
 def create_author_set(xml_string: str) -> frozenset:
@@ -74,7 +79,7 @@ def create_testfile(dataset: str, chunksize: int):
     author_set_list = []
 
     with open("testfile.xml", "a") as f:
-        for _ in range(50000):
+        for _ in range(2000000):
             tmp_entry = unescape(next(gen_entry_string))
             author_set_list.append(create_author_set(tmp_entry))
             f.write(tmp_entry)
@@ -86,17 +91,22 @@ def count_singletons(set_list):
     with a dictionary with the counted singleton authors.
     """
     singleton_dict = dict()
+    hash_dict = dict()
+    
     for sets in set_list:
         for elem in sets:
             if elem in singleton_dict:
                 singleton_dict[elem] += 1
             else:
                 singleton_dict[elem] = 1
+        for comb in itertools.combinations(sets, 2):
+            pair_hash = hash_tuple(comb)
+            if pair_hash not in hash_dict:
+                hash_dict[pair_hash] = 1
+            else:
+                hash_dict[pair_hash] += 1
 
-    with open("singletons.pkl", "wb") as pkl_file:
-        pickle.dump(singleton_dict, pkl_file, protocol=pickle.HIGHEST_PROTOCOL)
-
-    return singleton_dict
+    return singleton_dict, hash_dict
 
 
 def calculateMaxFrequentItemsets(countedOccurrences):
@@ -138,6 +148,35 @@ def makeCombinations(author_set, k):
     return combinations
 
 
+def validTuple(previous_iteration, k: int, candidate):
+    for min_combo in itertools.combinations(candidate, k - 1):
+        if frozenset(min_combo) not in previous_iteration:
+            return False
+    return True
+
+
+def generateBigKCandidate(previous_iteration, k: int):
+#def gen_candidate_k_tuple(previous_iteration, k, min_support, pair_hash=dict()):
+    """
+    Generates k-tuple candidates, more memory efficient but slower for big k values
+    """
+    for tuple_pair in itertools.combinations(previous_iteration, 2):
+        for combination in itertools.combinations(tuple_pair[0].union(tuple_pair[1]), k):
+            if validTuple(previous_iteration, k, combination) == True:
+                yield frozenset(combination)
+
+            
+def makeCombinationsBigK(previous_iteration, k: int):
+    combinations = []
+    np_pi = np.array(list(previous_iteration))
+    for combination in generateBigKCandidate(np_pi, k):
+        if combination not in combinations:
+            combinations.append(combination)
+
+    return combinations
+
+
+
 def main():
     args = arg_parser.parse_args()
 
@@ -146,55 +185,113 @@ def main():
         exit()
 
     author_set_list = []
-    support = 3
+    current_hash_dict = dict()
+    support = 10
 
     try:
         gen_entry_string = entry_string(args.dataset, args.chunksize * 1024 * 1024)
         for entry in gen_entry_string:
             tmp_author_set = create_author_set(unescape(entry))
-            if len(tmp_author_set) != 0:
+            if len(tmp_author_set) > 0:
                 author_set_list.append(tmp_author_set)
     except FileNotFoundError:
         print(f"Could not find file {args.dataset}")
-    
-    try:
-        print("Opening frequent singletons.")
-        with open("freq_singletons.pkl", "rb") as pkl_file:
-            freq_singletons = pickle.load(pkl_file)
-    except FileNotFoundError:
-        print("Can't open frequent singletons file")
-        freq_singletons = dict(
-            filter(
-                lambda elem: elem[1] >= support,
-                count_singletons(author_set_list).items(),
-            )
+
+    print("Dataset loaded.")
+
+    singletons, current_hash_dict = count_singletons(author_set_list)
+    freq_singletons = dict(
+        filter(
+            lambda elem: elem[1] >= support,
+            singletons.items(),
         )
+    )
 
+    np_author_set_list = np.array(author_set_list)
 
-    print("Max frequent itemsets, size: 1: ", end='')
-    print(calculateMaxFrequentItemsets(freq_singletons))
+    print(f"Size of author set list {len(np_author_set_list)}")
+    print(f"Amount of frequent singletons: {len(freq_singletons)}")
+
+    # print("Max frequent itemsets, size 1: ", end='')
+    # print(calculateMaxFrequentItemsets(freq_singletons))
 
     k = 2
 
-    while True:
+    supportedAuthorSets = dict()
+    maximal_f_itemsets = dict()
+    k_res = 0
+    
+    while k <= 3:
         combinations = dict()
-        for author_set in author_set_list:
+
+        next_hash_dict = dict()
+        
+        for author_set in np_author_set_list:
             if len(author_set) >= k:
                 for combination in makeCombinations(author_set, k):
-                    if combination in combinations:
-                        combinations[combination] += 1
-                    else:
-                        combinations[combination] = 1
+                    try:
+                        if current_hash_dict[hash_tuple(combination)] > support:
+                            if combination in combinations:
+                                combinations[combination] += 1
+                            else:
+                                combinations[combination] = 1
+                    except KeyError:
+                        continue
+                    
+                if len(author_set) > k and k < 3:
+                    for combination in makeCombinations(author_set, k + 1):
+                        comb_hash = hash_tuple(combination)
+                        if comb_hash in next_hash_dict:
+                            next_hash_dict[comb_hash] += 1
+                        else:
+                            next_hash_dict[comb_hash] = 1
 
+        current_hash_dict = next_hash_dict.copy()
+        next_hash_dict.clear()
         supportedAuthorSets = calculateSupportedAuthorSets(combinations, support)
+
+        if(supportedAuthorSets):
+            maximal_f_itemsets = supportedAuthorSets
+            k_res = k
         
-        print("Max frequent itemsets, size " + str(k) + " :" , end='')
+        print(f"{k} itemsets: " , end='')
         print(calculateMaxFrequentItemsets(supportedAuthorSets))
 
         k += 1
 
         if len(supportedAuthorSets) == 0:
             break
+
+        
+    while supportedAuthorSets:
+        combinations = dict()
+        candidateTuples = makeCombinationsBigK(supportedAuthorSets.keys(), k)
+
+        for author_set in np_author_set_list:
+            if len(author_set) >= k:
+                for candidate in candidateTuples:
+                    if candidate.issubset(author_set):
+                        if candidate in combinations:
+                            combinations[candidate] += 1 
+                        else:
+                            combinations[candidate] = 1
+
+        supportedAuthorSets = calculateSupportedAuthorSets(combinations, support)
+
+        if(supportedAuthorSets):
+            maximal_f_itemsets = supportedAuthorSets
+            k_res = k
+        #print(supportedAuthorSets)
+        print(f"{k} itemsets: " , end='')
+        print(calculateMaxFrequentItemsets(supportedAuthorSets))
+        
+        k += 1
+        
+        # if len(supportedAuthorSets) == 0:
+        #     break
+
+    print(f"The maximal frequent items sets are {k_res}-tuples:")
+    print(maximal_f_itemsets)
 
     print("done")
 
