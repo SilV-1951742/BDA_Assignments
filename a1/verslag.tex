@@ -1,18 +1,19 @@
-% Created 2021-10-12 Tue 18:10
+% Created 2021-10-10 Sun 18:03
 % Intended LaTeX compiler: pdflatex
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
+\usepackage{grffile}
 \usepackage{longtable}
 \usepackage{wrapfig}
 \usepackage{rotating}
 \usepackage[normalem]{ulem}
 \usepackage{amsmath}
+\usepackage{textcomp}
 \usepackage{amssymb}
 \usepackage{capt-of}
 \usepackage{hyperref}
-\usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage[sfdefault]{biolinum}
 \usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=true,factor=1100,stretch=10,shrink=10]{microtype}
@@ -24,30 +25,69 @@
  pdftitle={Verslag BDA opdracht 1},
  pdfkeywords={},
  pdfsubject={},
- pdfcreator={Emacs 29.0.50 (Org mode 9.5)}, 
+ pdfcreator={Emacs 29.0.50 (Org mode 9.4.6)}, 
  pdflang={English}}
 \begin{document}
 
 \maketitle
 \setlength\parindent{0pt}
 
-In deze opdracht was de bedoeling dat we een maximal frequent itemset algoritme ging implementeren. Hier hebben we het a-priori algoritme met hashing geïmplementeerd, dus het PCY algoritme.\\
+Voor dit project was het de bedoeling om een frequent itemset mining algoritme te implementeren op de DBLP dataset. Het doel was om de maximal frequent itemsets uit de DBLP databank te berekenen. De moeilijkheid ligt er bij dit project in om op een goede manier gebruik te maken van het beschikbare werkgeheugen van de computer om zo de gehele dataset, die van aard al relatief groot is, verwerkt te krijgen. In dit verslag zullen we de resultaten van ons algoritme bespreken alsook een blik werpen op de aanpak die we gevolgd hebben in de ontwikkeling van onze implementatie en de moeilijkheden waar we onderweg op botsten.
+
+\section{Aanpak en moeilijkheden}
+
+We hebben doorheen de loop van het project verschillende iteraties van onze implementatie moeten uitproberen. Initieel zijn we uitgegaan van een na\"ief textbook a-priori algoritme. Al snel bleek dat dit niet zou voldoen bij een te grote dataset. Deze eerste implementatie bestond eruit om simpelweg voor een gegeven k author sets te genereren van grootte k uit een lijst van alle voorkomende auteurs in de brondata. Vervolgens werd geteld of de gegenereerde author sets ook voldoende support hadden in de brondata. Deze implementatie moest het qua performantie al snel laten afweten wanneer de brondata boven de 10000 entries bevatte. Dit kwam doordat de stap waar de van candidate author sets berekend werden veel te kostelijk is, zeker voor het berekenen van paren (k=2). Achteraf gezien is dit ook logisch. De brondata bevat immers immens veel auteurs, maar een heel grote portie van die auteurs komen nooit samen voor als auteur van een publicatie. Wanneer we toch \textbf{alle} sets candidate sets genereren, dan bouwen we een zeer grote verzameling candidate sets die toch nooit kans maken om voor te komen in de brondata. We hebben met deze kennis een nieuwe implementatie gemaakt.\\
+
+Onze tweede iteratie bestond eruit om voor het berekenen van candidate sets met grootte k=2 de paren meteen af te leiden uit de brondata. De nieuwe implementatie ging voor het construeren van candidate paren gaat in de brondata kijken wanneer een publicatie 2 of meer auteurs had. Indien dit het geval is, zal hij alle mogelijke subsets van auteurs van grootte 2 uit die publicaties genereren. Door enkel paren te generen uit publicaties die ook echt 2 of meer auteurs hebben worden er een hele hoop candidate sets niet gegenereerd die anders gegarandeerd nooit samen zouden voorkomen. Dit was een zeer grote tijds- en geheugenbesparing in het algoritme. Onze nieuwe implementatie was nu veel sneller, maar had nog steeds moeite met te grote brondata.\\
+
+Een laatste optimalisatie die we hebben toegevoegd is het hashen van candidate sets naar buckets zoals beschreven in het PCY algoritme. Met deze laatste optimalisatie kregen we het algoritme gedraaid op een dataset ter grootte van 1.5 miljoen publicaties. Dit is ongeveer de helft van de volledige DBLP dataset. Het algoritme gebruikt hier op zijn piek 13GB geheugen. Aangezien we slechts met 8GB ramgeheugen zitten en 5GB swapgeheugen, wordt het proces voornamelijk sterk vertraagd door door het swappen van data tussen de swap-space en het RAM geheugen. 
 
 
-Het inlezen van de dataset in het XML-formaat wordt gedaan met behulp van regexes, dus de XML library in de standard library van Python is niet gebruikt. We hebben bewust deze keuze gemaakt omdat dit ons eenvoudiger leek, want we moesten enkel de entries tussen bepaalde tags matchen en dan enkel the authors. Dus we zijn tot de conclusie gekomen dat een hele XML parser wat overkill was.\\
+\section{Resultaten}
 
-De dataset wordt ook niet in een keer ingelezen, maar in chunks van \emph{x} megabytes, waar \emph{x} een commandline argument is.
-
-Het programma wordt als volgt opgeroepen:
+Om onze resultaten te reproduceren kan het programma op volgende manier worden aangeroepen:
 
 \begin{verbatim}
-python main.py {{dataset}}.xml {{chunk_size}}
+$ python3 main.py {{dataset.xml}} {{chunk_size}}
 \end{verbatim}
 
+Waar \{\{dataset\}\} en \{\{chunk\_size\}\} het bestand dat de dataset bevat en de chunk size waarmee het bestand wordt ongelezen zijn respectievelijk. Ook kan men een optionele \texttt{-{}-make\_testfile} flag toevoegen om een kleinere testfile van de grotere \{\{dataset\}\} file te maken.\\
 
-Waar \{\{dataset\}\} en \{\{chunk\_size\}\} het bestand dat de dataset bevat en de chunk size waarmee het bestand wordt ongelezen zijn respectievelijk. Ook kan men een optionele \texttt{-{}-make\textbackslash{}\_testfile} flag toevoegen om een kleinere testfile van de grotere \{\{dataset\}\} file te maken.\\
+We hebben op bovenstaande manier aan kleinere dataset aangemaakt uit de dblp dataset van grootte 1.5 miljoen publicaties. met volgend commando:
 
-Bij \emph{k}'s van één tot en met drie wordt er een ander algoritme gebruikt om kandidaten te vinden bij \emph{k}'s van hoger dan drie. Hier is voor gekozen omdat in praktijk het snelle algoritme te geheugeninefficiënt bleek te zijn en het meer geheugenefficiënt algoritme te traag. Dus hebben we besloten een compris te maken aan de hand van emprische ervaring.\\
+\begin{verbatim}
+$ python3 main.py --make_testfile dblp.xml 1000 
+\end{verbatim}
 
-Het programma dat geschreven is in deze assignment werkt op kleinere subsets van de dataset, we hebben het geprobeerd te runnen op de gehele dataset, maar het geheugen van onze laptop geraakten te snel vol. Onze laptops hadden maar een geheugen van 8 GB. We hebben het geprobeerd te optimalisen met behulp van hashing. Dit verbeterde de situatie, maar het geheugen geraakte alsnog vol.\\
+Vervolgens kan het algoritme worden uitgevoerd op de gegenereerde kleinere dataset met behulp van volgend commando:
+
+\begin{verbatim}
+$ python3 main.py testfile.xml 
+\end{verbatim}
+
+In de output van ons algoritme krijgen we vervolgens te zien dat de maximal frequent itemsets grootte k=9 hebben. Als support hebben we s=15 gebruikt. Een voorbeeld van een dergelijke itemset is de volgende verzameling auteurs: 
+
+\begin{verbatim}
+{
+    'Robert M. Kuhn', 
+    'David Haussler', 
+    'Galt P. Barber', 
+    'Mark Diekhans',
+    'W. James Kent', 
+    'Hiram Clawson',
+    'Brian J. Raney',
+    'Kate R. Rosenbloom',
+    'Ann S. Zweig'
+}
+\end{verbatim}
+
+Concreet betekent dit dat bovenstaande set geen enkele superset heeft die vaker voorkomt dan deze set zelf. Bovendien komt deze set 15 keer voor in de brondata.
+
+
+\section{Conclusie}
+Het ontwikkelen van een algoritme dat voldoende grote datasets kon verwerken bleek een heel karwei te zijn. In het verleden van onze opleiding lag de moeilijkheid bij gelijkaardige projecten en opdrachten vaak in het snel genoeg krijgen van een implementatie door een tijds-effici\"entere implementatie te maken. In dit geval was een andere mindset nodig om niet alleen te focussen op de performantie in termen van runtime, maar ook in termen van geheugengebruik. We denken niet dat we het onderste uit de kan hebben kunnen halen op dit gebied, maar we hebben wel nieuwe inzichten opgedaan over hoe we kunnen omgaan met algoritmes die moeten werken op grote datasets. We denken overigens ook er zeker nog ruimte is voor optimalisaties waar we verder niet toe gekomen zijn wegens tijdsgebrek. 
+
+
+
+
 \end{document}
