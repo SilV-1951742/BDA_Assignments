@@ -80,25 +80,32 @@ def main():
     year_title_collection = []
     with year_title_generator(args.dataset, args.chunksize) as titles:
         for title in titles.title_iterator():
-            print(title)
+            # print(title)
             year_title_collection.append(title)
 
     print("Titles collected")
     
-    min_hasher = TfidfVectorizer(norm='l1', use_idf=False, stop_words='english')
-    titles_hashed = min_hasher.fit_transform([year_title.title for year_title in year_title_collection])
-
-    print("Hashed")
+    min_hasher = TfidfVectorizer(norm='l2', use_idf=True, stop_words='english', ngram_range=(1, 1))
     
-    km = cluster.KMeans(n_clusters=20)
-    km.fit(titles_hashed)
+    print("Hashed")
 
-    print("Top terms per cluster:")
-    order_centroids = km.cluster_centers_.argsort()[:, ::-1]
-    terms = min_hasher.get_feature_names()
-    for i in range(20):
-        top_five_words = [terms[ind] for ind in order_centroids[i, :5]]
-        print("Cluster {}: {}".format(i, ' '.join(top_five_words)))
+    for y in range(1960, 2020, 10):
+        clusters: int = 10
+        print(f"Clusters in range of year {y} - {y+10}")
+        titles_hashed = min_hasher.fit_transform([year_title.title for year_title  in year_title_collection if
+                                                  (year_title.year >= y and year_title.year < (y + 10))])
+    
+        km = cluster.KMeans(n_clusters=clusters)
+        km.fit(titles_hashed)
+
+        print(f"Top terms per cluster {y} - {y+10}:")
+        order_centroids = km.cluster_centers_.argsort()[:, ::-1]
+        terms = min_hasher.get_feature_names()
+        for i in range(clusters):
+            top_five_words = [terms[ind] for ind in order_centroids[i, :5]]
+            print("Cluster {}: {}".format(i, ' '.join(top_five_words)))
+        print()
+        print()
 
     # plt.scatter(titles_hashed[:,0],titles_hashed[:,1], c=km.labels_, cmap='rainbow')
     # plt.scatter(km.cluster_centers_[:,0] ,km.cluster_centers_[:,1], color='black')
