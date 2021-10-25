@@ -5,11 +5,14 @@ import argparse
 from sklearn import cluster
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from nltk.stem import SnowballStemmer
 import matplotlib.pyplot as plt
 from typing import NamedTuple, Final
 import os
-
+import time
+from nltk import word_tokenize          
+from nltk.stem import WordNetLemmatizer
 
 arg_parser = argparse.ArgumentParser(description="BDA opdr1.")
 
@@ -24,14 +27,20 @@ arg_parser.add_argument(
     help="Create a test dataset of 10000 entries.",
 )
 
-DATA_MINING_KEYS: Final = ["journals/sigkdd", "conf/pkdd", "conf/icdm", "conf/sdm"]
-DB_KEYS: Final = ["journals/sigmod", "journals/vldb", "conf/edbt", "conf/icde"]
+DATA_DB_BOOL: Final = False
 
-g_entry = ""
+DATA_MINING_KEYS: Final = ["journals/sigkdd", "conf/pkdd", "conf/icdm", "conf/sdm"]
+DATA_MINING_REGEX: Final =  re.compile(r"(journals\/sigkdd|conf\/pkdd|conf\/icdm|conf\/sdm)")
+DB_KEYS: Final = ["journals/sigmod", "journals/vldb", "conf/edbt", "conf/icde"]
+DB_REGEX: Final =  re.compile(r"(journals\/sigmod|journals\/vldb|conf\/edbt|conf\/icde)")
 
 class year_title_tuple(NamedTuple):
     year: int
     title: str
+
+class year_title_except(Exception):
+    """Exception thrown if year/title can't be found."""
+    pass
 
 class year_title_generator:
     def __init__(self, filename: str, chunk_size: int):
@@ -41,10 +50,8 @@ class year_title_generator:
         self.entry_regex = re.compile(
             r"(<article|<book|<phdthesis|<www|<incollection|<proceedings|<inproceedings)([\s\S]*?)(<\/article>|<\/book>|<\/phdthesis>|<\/www>|<\/incollection>|<\/proceedings>|<\/inproceedings>)"
 )
-        self.title_regex = re.compile(r"<title>([\s\S]*?)<\/title>")
-        self.year_regex = re.compile(r"<year>([\s\S]*?)<\/year>")
-        #self.key_regex = re.compile(r"key=\"([\s\S]*?)\"")
-        self.key_regex = re.compile(r"<url>db\/([\s\S]*?)<\/url>")
+        self.title_regex = re.compile(r"<title.*>(.*)<\/title>")
+        self.year_regex = re.compile(r"<year.*>(.*)<\/year>")
 
     def entry_string_generator(self):
         previous = ""
@@ -57,27 +64,44 @@ class year_title_generator:
                 yield result.group(0)
             previous = data[start_prev:]
 
-    def create_year_title_tuple(self, xml_string: str) -> year_title_tuple:
-        year: int = int(self.year_regex.search(xml_string).group(1))
-        title: str = self.title_regex.search(xml_string).group(1)
-        return year_title_tuple(year, title)
+    def create_year_title_tuple(self, xml_element) -> year_title_tuple:
+        title_r = re.search(self.title_regex, xml_element)
+        year_r = re.search(self.year_regex, xml_element)
 
-    def get_key(self, xml_string: str) -> str:
-        key = self.key_regex.search(xml_string)
-        key_str = ""
-        if key != None:
-            key_str = key.group(1)
-            name_index = key_str.rfind("/")
-            return key_str[0:name_index]
-        return ""
+        if not title_r  or not year_r:
+            raise year_title_except()
+        
+        return year_title_tuple(int(year_r.group(1)), str(title_r.group(1)))
+
+    def check_key(self, xml_element) -> bool:
+        if DATA_DB_BOOL == True:
+            regex_match = re.search(DATA_MINING_REGEX, xml_element)
+            if regex_match:
+                return True
+            return False
+        else:
+            regex_match = re.search(DB_REGEX, xml_element)
+            if regex_match:
+                return True
+            return False
+
+    def clean_entry(self, entry_string: str) -> str:
+        return unescape(entry_string).replace("&", "&#38;")
     
     def title_iterator(self):
         print(DATA_MINING_KEYS)
         print(DB_KEYS)
+        iter = 0
+        start_time = time.time()
         for entry in self.entry_string_generator():
-            if self.get_key(entry) in DATA_MINING_KEYS:
-                print(self.get_key(entry))
-            yield self.create_year_title_tuple(unescape(entry))
+            iter += 1
+            if iter%10000 == 0: 
+                print(f"{iter} entries processed in {time.time() - start_time} seconds.")
+            try:
+                if(self.check_key(entry)):
+                    yield self.create_year_title_tuple(entry)
+            except year_title_except:
+                continue
 
     def __enter__(self):
         print(f"Opening {self.filename}")
@@ -88,49 +112,52 @@ class year_title_generator:
         self.fp.close()
         return True
 
-stemmer = SnowballStemmer('english')
+def tokenize(raw):
+    return [w.lower() for w in word_tokenize(raw) if w.isalpha()]
 
-def stemmer_tokenizer(input_string: str):
-    words = re.sub(r"[^A-Za-z0-9\-]", " ", input_string).lower().split()
-    return [stemmer.stem(word) for word in words]
+class StemmedTfidfVectorizer(TfidfVectorizer):
+    lemmatizer = WordNetLemmatizer()
+    
+    def build_analyzer(self):
+        analyzer = super(StemmedTfidfVectorizer, self).build_analyzer()
+        return lambda doc: (StemmedTfidfVectorizer.lemmatizer.lemmatize(w) for w in analyzer(doc))
 
     
 def main():
     args = arg_parser.parse_args()
-
     year_title_collection = []
-    last_title = ""
     with year_title_generator(args.dataset, args.chunksize) as titles:
         for title in titles.title_iterator():
-            # print(title)
             year_title_collection.append(title)
-            last_title = year_title_collection[-1].title
 
     print("Titles collected")
-    print(f"Last title: {last_title}")
     print(f"Entries in filtered titles: {len(year_title_collection)}")
-    
-    min_hasher = TfidfVectorizer(norm='l2', use_idf=True, stop_words='english', ngram_range=(1, 1))
+
+    my_stop_words = ENGLISH_STOP_WORDS.union(["application"])
+    min_hasher = StemmedTfidfVectorizer(norm='l2', use_idf=True, stop_words=my_stop_words, ngram_range=(1, 1), tokenizer=tokenize)
     
     print("Hashed")
 
-    # for y in range(1960, 2020, 10):
-    #     clusters: int = 10
-    #     print(f"Clusters in range of year {y} - {y+10}")
-    #     titles_hashed = min_hasher.fit_transform([year_title.title for year_title  in year_title_collection if
-    #                                               (year_title.year >= y and year_title.year < (y + 10))])
+    for y in range(1960, 2020, 10):
+        try:
+            clusters: int = 10
+            print(f"Clusters in range of year {y} - {y+15}")
+            titles_hashed = min_hasher.fit_transform([year_title.title for year_title  in year_title_collection if
+                                                      (year_title.year >= y and year_title.year < (y + 15))])
     
-    #     km = cluster.KMeans(n_clusters=clusters)
-    #     km.fit(titles_hashed)
+            km = cluster.KMeans(n_clusters=clusters)
+            km.fit(titles_hashed)
 
-    #     print(f"Top terms per cluster {y} - {y+10}:")
-    #     order_centroids = km.cluster_centers_.argsort()[:, ::-1]
-    #     terms = min_hasher.get_feature_names()
-    #     for i in range(clusters):
-    #         top_five_words = [terms[ind] for ind in order_centroids[i, :5]]
-    #         print("Cluster {}: {}".format(i, ' '.join(top_five_words)))
-    #     print()
-    #     print()
+            print(f"Top terms per cluster {y} - {y+15}:")
+            order_centroids = km.cluster_centers_.argsort()[:, ::-1]
+            terms = min_hasher.get_feature_names()
+            for i in range(clusters):
+                top_five_words = [terms[ind] for ind in order_centroids[i, :5]]
+                print("Cluster {}: {}".format(i, ' '.join(top_five_words)))
+            print()
+            print()
+        except ValueError:
+            continue
 
     # plt.scatter(titles_hashed[:,0],titles_hashed[:,1], c=km.labels_, cmap='rainbow')
     # plt.scatter(km.cluster_centers_[:,0] ,km.cluster_centers_[:,1], color='black')
