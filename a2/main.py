@@ -14,7 +14,6 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
 import numpy as np
 
 
@@ -179,50 +178,50 @@ def main():
 
     print("\r\nDBSCAN")
 
-    for y in range(1960, 2020, 10):
-        try:
-            print(f"Clusters in range of year {y} - {y+15}")
-            features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
-                                                      (year_title.year >= y and year_title.year < (y + 15))])
+    # for y in range(1960, 2020, 10):
+    #     try:
+    #         print(f"Clusters in range of year {y} - {y+15}")
+    #         features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
+    #                                                   (year_title.year >= y and year_title.year < (y + 15))])
 
-            db = cluster.DBSCAN(eps=0.3, min_samples=10)
-            # km = cluster.KMeans(n_clusters=clusters)
-            y_kmeans = db.fit_predict(features)
-            labels = db.labels_
+    #         db = cluster.DBSCAN(eps=0.3, min_samples=10)
+    #         # km = cluster.KMeans(n_clusters=clusters)
+    #         y_kmeans = db.fit_predict(features)
+    #         labels = db.labels_
 
-            no_clusters = len(np.unique(labels) )
-            no_noise = np.sum(np.array(labels) == -1, axis=0)
+    #         no_clusters = len(np.unique(labels) )
+    #         no_noise = np.sum(np.array(labels) == -1, axis=0)
 
-            print(f'Estimated no. of clusters: {no_clusters}')
-            print(f'Estimated no. of noise points: {no_noise}')
+    #         print(f'Estimated no. of clusters: {no_clusters}')
+    #         print(f'Estimated no. of noise points: {no_noise}')
             
-            print(f"Top terms per cluster {y} - {y+15}:")
-            order_centroids = db.cluster_centers_.argsort()[:, ::-1]
-            # terms = vect.get_feature_names()
+    #         print(f"Top terms per cluster {y} - {y+15}:")
+    #         order_centroids = db.cluster_centers_.argsort()[:, ::-1]
+    #         # terms = vect.get_feature_names()
 
-            # color_list = ["red", "blue", "green", "cyan", "magenta", "yellow", "black", "purple", "pink", "navy"]
+    #         # color_list = ["red", "blue", "green", "cyan", "magenta", "yellow", "black", "purple", "pink", "navy"]
             
-            # for i in range(clusters):
-            #     top_five_words = [terms[ind] for ind in order_centroids[i, :5]]
-            #     print(f"Cluster {i}: {top_five_words}")
+    #         # for i in range(clusters):
+    #         #     top_five_words = [terms[ind] for ind in order_centroids[i, :5]]
+    #         #     print(f"Cluster {i}: {top_five_words}")
 
-            # # reduce the features to 2D
-            # pca = PCA(n_components=2, random_state=random_state)
-            # reduced_features = pca.fit_transform(features.toarray())
+    #         # # reduce the features to 2D
+    #         # pca = PCA(n_components=2, random_state=random_state)
+    #         # reduced_features = pca.fit_transform(features.toarray())
 
-            # # reduce the cluster centers to 2D
-            # reduced_cluster_centers = pca.transform(km.cluster_centers_)
+    #         # # reduce the cluster centers to 2D
+    #         # reduced_cluster_centers = pca.transform(km.cluster_centers_)
 
-            # plt.title(f'Clusters from {y} - {y + 15}')
+    #         # plt.title(f'Clusters from {y} - {y + 15}')
             
-            # plt.scatter(reduced_features[:,0], reduced_features[:,1], c=km.predict(features))
-            # plt.scatter(reduced_cluster_centers[:, 0], reduced_cluster_centers[:,1], marker='x', s=150, c='b')
+    #         # plt.scatter(reduced_features[:,0], reduced_features[:,1], c=km.predict(features))
+    #         # plt.scatter(reduced_cluster_centers[:, 0], reduced_cluster_centers[:,1], marker='x', s=150, c='b')
             
-            # plt.show()
-            # print()
-            # print()
-        except ValueError:
-            continue
+    #         # plt.show()
+    #         # print()
+    #         # print()
+    #     except ValueError:
+    #         continue
 
     print("---")
     print("---")
@@ -230,13 +229,14 @@ def main():
 
     for y in range(1960, 2020, 10):
         try:
-            clusters: int = 4
+            clusters: int = 10
+            top_terms =  10
             random_state: int = 1
             print(f"Clusters in range of year {y} - {y+15}")
             features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
                                            (year_title.year >= y and year_title.year < (y + 15))])
 
-            km = cluster.MiniBatchKMeans(n_clusters=clusters)
+            km = cluster.KMeans(n_clusters=clusters)
             # km = cluster.KMeans(n_clusters=clusters)
             y_kmeans = km.fit_predict(features)
 
@@ -244,10 +244,10 @@ def main():
             order_centroids = km.cluster_centers_.argsort()[:, ::-1]
             terms = vect.get_feature_names()
 
-            color_list = ["red", "blue", "green", "cyan", "magenta", "yellow", "black", "purple", "pink", "navy"]
+            # color_list = ["red", "blue", "green", "cyan", "magenta", "yellow", "black", "purple", "pink", "navy"]
             
             for i in range(clusters):
-                top_five_words = [terms[ind] for ind in order_centroids[i, :5]]
+                top_five_words = [terms[ind] for ind in order_centroids[i, :top_terms]]
                 print(f"Cluster {i}: {top_five_words}")
 
             # reduce the features to 2D
