@@ -2,17 +2,21 @@ from functools import partial
 import re
 from html import unescape
 import argparse
-from sklearn import cluster
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
-from nltk.stem import SnowballStemmer
 import matplotlib.pyplot as plt
 from typing import NamedTuple, Final
 import os
 import time
 from nltk import word_tokenize          
 from nltk.stem import WordNetLemmatizer
+from sklearn import cluster
+#from sklearn.cluster import MiniBatchKMeans
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+import numpy as np
+
 
 arg_parser = argparse.ArgumentParser(description="BDA opdr1.")
 
@@ -112,6 +116,32 @@ class year_title_generator:
         self.fp.close()
         return True
 
+def generate_elbow_graph(pipeline, year_title_list):
+    print("Creating elbow graph")
+    plt.figure()
+    # for y in range(1960, 2020, 10):
+        # try:
+            # titles_hashed = hasher.fit_transform([year_title.title for year_title  in year_title_list if
+            #                                   (year_title.year >= y and year_title.year < (y + 15))])
+    titles_hashed = pipeline.fit_transform([year_title.title for year_title in year_title_list])
+    elbow_list = {}
+    legend_list = []
+    for k in range(1, 20):
+        kmeans = cluster.KMeans(n_clusters=k)
+        kmeans.fit(titles_hashed)
+        elbow_list[k] = kmeans.inertia_
+                
+    plt.plot(list(elbow_list.keys()), list(elbow_list.values()))
+    
+    #legend_list.append(f"{y} - {y+15}")
+        #except ValueError:
+         #   continue
+    plt.xlabel("Number of clusters")
+    plt.ylabel("Inertia")
+    plt.title(f"Elbow graph")
+    plt.show()
+
+
 def tokenize(raw):
     return [w.lower() for w in word_tokenize(raw) if w.isalpha()]
 
@@ -134,35 +164,112 @@ def main():
     print(f"Entries in filtered titles: {len(year_title_collection)}")
 
     my_stop_words = ENGLISH_STOP_WORDS.union(["application"])
-    min_hasher = StemmedTfidfVectorizer(norm='l2', use_idf=True, stop_words=my_stop_words, ngram_range=(1, 1), tokenizer=tokenize)
+    vect = StemmedTfidfVectorizer(norm='l2', use_idf=True, stop_words=my_stop_words, ngram_range=(1, 1), tokenizer=tokenize)
     
-    print("Hashed")
+    # print("Printing data")
+
+    # X = vect.fit_transform([year_title.title for year_title in year_title_collection]).todense()
+    
+    # pca = PCA(n_components=2).fit(X)
+    # data2D = pca.transform(X)
+    # plt.scatter(data2D[:,0], data2D[:,1])
+    # plt.show()
+
+    # generate_elbow_graph(vect, year_title_collection)
+
+    print("\r\nDBSCAN")
 
     for y in range(1960, 2020, 10):
         try:
-            clusters: int = 10
             print(f"Clusters in range of year {y} - {y+15}")
-            titles_hashed = min_hasher.fit_transform([year_title.title for year_title  in year_title_collection if
+            features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
                                                       (year_title.year >= y and year_title.year < (y + 15))])
-    
-            km = cluster.KMeans(n_clusters=clusters)
-            km.fit(titles_hashed)
+
+            db = cluster.DBSCAN(eps=0.3, min_samples=10)
+            # km = cluster.KMeans(n_clusters=clusters)
+            y_kmeans = db.fit_predict(features)
+            labels = db.labels_
+
+            no_clusters = len(np.unique(labels) )
+            no_noise = np.sum(np.array(labels) == -1, axis=0)
+
+            print(f'Estimated no. of clusters: {no_clusters}')
+            print(f'Estimated no. of noise points: {no_noise}')
+            
+            print(f"Top terms per cluster {y} - {y+15}:")
+            order_centroids = db.cluster_centers_.argsort()[:, ::-1]
+            # terms = vect.get_feature_names()
+
+            # color_list = ["red", "blue", "green", "cyan", "magenta", "yellow", "black", "purple", "pink", "navy"]
+            
+            # for i in range(clusters):
+            #     top_five_words = [terms[ind] for ind in order_centroids[i, :5]]
+            #     print(f"Cluster {i}: {top_five_words}")
+
+            # # reduce the features to 2D
+            # pca = PCA(n_components=2, random_state=random_state)
+            # reduced_features = pca.fit_transform(features.toarray())
+
+            # # reduce the cluster centers to 2D
+            # reduced_cluster_centers = pca.transform(km.cluster_centers_)
+
+            # plt.title(f'Clusters from {y} - {y + 15}')
+            
+            # plt.scatter(reduced_features[:,0], reduced_features[:,1], c=km.predict(features))
+            # plt.scatter(reduced_cluster_centers[:, 0], reduced_cluster_centers[:,1], marker='x', s=150, c='b')
+            
+            # plt.show()
+            # print()
+            # print()
+        except ValueError:
+            continue
+
+    print("---")
+    print("---")
+    print("\r\nKMeans")
+
+    for y in range(1960, 2020, 10):
+        try:
+            clusters: int = 4
+            random_state: int = 1
+            print(f"Clusters in range of year {y} - {y+15}")
+            features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
+                                           (year_title.year >= y and year_title.year < (y + 15))])
+
+            km = cluster.MiniBatchKMeans(n_clusters=clusters)
+            # km = cluster.KMeans(n_clusters=clusters)
+            y_kmeans = km.fit_predict(features)
 
             print(f"Top terms per cluster {y} - {y+15}:")
             order_centroids = km.cluster_centers_.argsort()[:, ::-1]
-            terms = min_hasher.get_feature_names()
+            terms = vect.get_feature_names()
+
+            color_list = ["red", "blue", "green", "cyan", "magenta", "yellow", "black", "purple", "pink", "navy"]
+            
             for i in range(clusters):
                 top_five_words = [terms[ind] for ind in order_centroids[i, :5]]
-                print("Cluster {}: {}".format(i, ' '.join(top_five_words)))
+                print(f"Cluster {i}: {top_five_words}")
+
+            # reduce the features to 2D
+            pca = PCA(n_components=2, random_state=random_state)
+            reduced_features = pca.fit_transform(features.toarray())
+
+            # reduce the cluster centers to 2D
+            reduced_cluster_centers = pca.transform(km.cluster_centers_)
+
+            plt.title(f'Clusters from {y} - {y + 15}')
+            
+            plt.scatter(reduced_features[:,0], reduced_features[:,1], c=km.predict(features))
+            plt.scatter(reduced_cluster_centers[:, 0], reduced_cluster_centers[:,1], marker='x', s=150, c='b')
+            
+            plt.show()
             print()
             print()
         except ValueError:
             continue
 
-    # plt.scatter(titles_hashed[:,0],titles_hashed[:,1], c=km.labels_, cmap='rainbow')
-    # plt.scatter(km.cluster_centers_[:,0] ,km.cluster_centers_[:,1], color='black')
-    # plt.plot()
-
+    
+        
 if __name__ == "__main__":
     try:
         main()
