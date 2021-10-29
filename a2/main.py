@@ -151,7 +151,7 @@ def tokenize(raw):
     return [w.lower() for w in word_tokenize(raw) if w.isalpha()]
 
 
-def build_clusters(features, labels):
+def build_clusters(features, labels, centres):
     clusters = {}
     for i in range(len(labels)):
         if labels[i] in clusters:
@@ -169,9 +169,6 @@ class StemmedTfidfVectorizer(TfidfVectorizer):
         return lambda doc: (StemmedTfidfVectorizer.lemmatizer.lemmatize(w) for w in analyzer(doc))
     
 def plot_tsne_pca(data, labels, title):
-    max_label = max(labels)
-    #max_items = np.random.choice(range(data.shape[0]), size=3000, replace=False)
-    
     pca = PCA(n_components=2).fit_transform(data.todense())
     tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=2000).fit_transform(data)
     
@@ -204,8 +201,13 @@ def main():
     
     print("Titles collected")
     print(f"Entries in filtered titles: {len(year_title_collection)}")
+    ed_note = 0
+    for elem in year_title_collection:
+        if elem.title == "Editor's Notes.":
+            ed_note += 1
+    print(f"Found {ed_note} editor's notes.")
 
-    my_stop_words = ENGLISH_STOP_WORDS.union(["application"])
+    my_stop_words = ENGLISH_STOP_WORDS.union(["application", "title", "contents", "editor", "chairman", "chair", "vice", "note", "conference"])
     vect = StemmedTfidfVectorizer(norm='l2', use_idf=True, stop_words=my_stop_words, ngram_range=(1, 1), tokenizer=tokenize)
     
     # print("Printing data")
@@ -219,12 +221,12 @@ def main():
 
     # generate_elbow_graph(vect, year_title_collection)
 
-    print("\r\nDBSCAN")
+    print("\r\nDBSCAN\r\n")
     kmeans_cluster_size: List[int] = []
     cluster_index = 0
     for y in range(1960, 2020, 10):
         try:
-            print(f"Clusters in range of year {y} - {y+15}")
+            print(f"DBSCAN in range of year {y} - {y+15}")
             features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
                                                       (year_title.year >= y and year_title.year < (y + 15))])
 
@@ -247,30 +249,30 @@ def main():
 
     for y in range(1960, 2020, 10):
         try:
-            top_terms =  10
+            top_terms =  3
            
-            print(f"Clusters in range of year {y} - {y+15}")
-
             features_pre_transform: List[str]  = [year_title.title for year_title  in year_title_collection if
                                            (year_title.year >= y and year_title.year < (y + 15))]
-            print(f"# features pre transfrom {features_pre_transform}")
+
+            print(f"Clusters in range of year {y} - {y+15}\r\n{len(features_pre_transform)} titles in this range")
+            #print(f"# features pre transfrom {features_pre_transform}")
             features = vect.fit_transform(features_pre_transform)
 
-            km = cluster.KMeans(n_clusters=kmeans_cluster_size[cluster_index])
+            km = cluster.KMeans(n_clusters=kmeans_cluster_size[cluster_index] + 1)
             y_kmeans = km.fit_predict(features)
 
             print(f"Top terms per cluster {y} - {y+15}:")
             order_centroids = km.cluster_centers_.argsort()[:, ::-1]
             
-            terms = vect.get_feature_names_out()
+            #terms = vect.get_feature_names_out()
 
-            final_clusters = build_clusters(features_pre_transform, y_kmeans)
-            for i in range(clusters):
-                sample = final_clusters[i][:3]
+            final_clusters = build_clusters(features_pre_transform, y_kmeans, km.cluster_centers_)
+            for i in range(kmeans_cluster_size[cluster_index] + 1):
+                sample = final_clusters[i][:top_terms]
                 # top_five_words = [terms[ind] for ind in order_centroids[i, :top_terms]]
                 print(f"Cluster {i}: {sample}")
 
-            plot_tsne_pca(features, y_kmeans, f'Clusters from {y} - {y + 15}')
+            #plot_tsne_pca(features, y_kmeans, f'Clusters from {y} - {y + 15}')
             cluster_index += 1
             # # reduce the features to 2D
             # pca = PCA(n_components=2, random_state=random_state)
