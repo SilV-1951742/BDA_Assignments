@@ -249,10 +249,10 @@ def main():
 
     for y in range(1960, 2020, 10):
         try:
-            top_terms =  3
+            top_terms =  5
            
             features_pre_transform: List[str]  = [year_title.title for year_title  in year_title_collection if
-                                           (year_title.year >= y and year_title.year < (y + 15))]
+                                                  (year_title.year >= y and year_title.year < (y + 15))]
 
             print(f"Clusters in range of year {y} - {y+15}\r\n{len(features_pre_transform)} titles in this range")
             #print(f"# features pre transfrom {features_pre_transform}")
@@ -262,16 +262,23 @@ def main():
             y_kmeans = km.fit_predict(features)
 
             print(f"Top terms per cluster {y} - {y+15}:")
-            order_centroids = km.cluster_centers_.argsort()[:, ::-1]
+            #order_centroids = km.cluster_centers_.argsort()[:, ::-1]
             
             #terms = vect.get_feature_names_out()
 
             final_clusters = build_clusters(features_pre_transform, y_kmeans, km.cluster_centers_)
             for i in range(kmeans_cluster_size[cluster_index] + 1):
-                sample = final_clusters[i][:top_terms]
-                # top_five_words = [terms[ind] for ind in order_centroids[i, :top_terms]]
-                print(f"Cluster {i}: {sample}")
-
+                fc_transformed = vect.transform(final_clusters[i])
+                dist_centers = km.transform(fc_transformed)
+                #closest, _ =  pairwise_distances_argmin_min(km.cluster_centers_, fc_transformed)
+                sorted = dist_centers[:, i].argsort()[:top_terms]
+                
+                # sorted = np.argsort(dist_centers, axis=1)
+                print(f"Cluster {i}: ", end="")
+                for index in sorted:
+                    print(f"\"{final_clusters[i][index]}\" - ", end="")
+                print()
+                    
             #plot_tsne_pca(features, y_kmeans, f'Clusters from {y} - {y + 15}')
             cluster_index += 1
             # # reduce the features to 2D
