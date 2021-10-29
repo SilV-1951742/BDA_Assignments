@@ -8,12 +8,13 @@ import os
 import time
 from nltk import word_tokenize          
 from nltk.stem import WordNetLemmatizer
+from nltk.util import pairwise
 from sklearn import cluster
-#from sklearn.cluster import MiniBatchKMeans
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from sklearn.decomposition import PCA
+from sklearn.metrics import pairwise_distances_argmin_min
 import numpy as np
 
 
@@ -144,13 +145,23 @@ def generate_elbow_graph(pipeline, year_title_list):
 def tokenize(raw):
     return [w.lower() for w in word_tokenize(raw) if w.isalpha()]
 
+
+def build_clusters(features, labels):
+    clusters = {}
+    for i in range(len(labels)):
+        if labels[i] in clusters:
+            clusters[labels[i]].append(features[i])
+        else:
+            clusters[labels[i]] = [features[i]]
+    return clusters
+
+
 class StemmedTfidfVectorizer(TfidfVectorizer):
     lemmatizer = WordNetLemmatizer()
     
     def build_analyzer(self):
         analyzer = super(StemmedTfidfVectorizer, self).build_analyzer()
         return lambda doc: (StemmedTfidfVectorizer.lemmatizer.lemmatize(w) for w in analyzer(doc))
-
     
 def main():
     args = arg_parser.parse_args()
@@ -164,64 +175,6 @@ def main():
 
     my_stop_words = ENGLISH_STOP_WORDS.union(["application"])
     vect = StemmedTfidfVectorizer(norm='l2', use_idf=True, stop_words=my_stop_words, ngram_range=(1, 1), tokenizer=tokenize)
-    
-    # print("Printing data")
-
-    # X = vect.fit_transform([year_title.title for year_title in year_title_collection]).todense()
-    
-    # pca = PCA(n_components=2).fit(X)
-    # data2D = pca.transform(X)
-    # plt.scatter(data2D[:,0], data2D[:,1])
-    # plt.show()
-
-    # generate_elbow_graph(vect, year_title_collection)
-
-    print("\r\nDBSCAN")
-
-    # for y in range(1960, 2020, 10):
-    #     try:
-    #         print(f"Clusters in range of year {y} - {y+15}")
-    #         features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
-    #                                                   (year_title.year >= y and year_title.year < (y + 15))])
-
-    #         db = cluster.DBSCAN(eps=0.3, min_samples=10)
-    #         # km = cluster.KMeans(n_clusters=clusters)
-    #         y_kmeans = db.fit_predict(features)
-    #         labels = db.labels_
-
-    #         no_clusters = len(np.unique(labels) )
-    #         no_noise = np.sum(np.array(labels) == -1, axis=0)
-
-    #         print(f'Estimated no. of clusters: {no_clusters}')
-    #         print(f'Estimated no. of noise points: {no_noise}')
-            
-    #         print(f"Top terms per cluster {y} - {y+15}:")
-    #         order_centroids = db.cluster_centers_.argsort()[:, ::-1]
-    #         # terms = vect.get_feature_names()
-
-    #         # color_list = ["red", "blue", "green", "cyan", "magenta", "yellow", "black", "purple", "pink", "navy"]
-            
-    #         # for i in range(clusters):
-    #         #     top_five_words = [terms[ind] for ind in order_centroids[i, :5]]
-    #         #     print(f"Cluster {i}: {top_five_words}")
-
-    #         # # reduce the features to 2D
-    #         # pca = PCA(n_components=2, random_state=random_state)
-    #         # reduced_features = pca.fit_transform(features.toarray())
-
-    #         # # reduce the cluster centers to 2D
-    #         # reduced_cluster_centers = pca.transform(km.cluster_centers_)
-
-    #         # plt.title(f'Clusters from {y} - {y + 15}')
-            
-    #         # plt.scatter(reduced_features[:,0], reduced_features[:,1], c=km.predict(features))
-    #         # plt.scatter(reduced_cluster_centers[:, 0], reduced_cluster_centers[:,1], marker='x', s=150, c='b')
-            
-    #         # plt.show()
-    #         # print()
-    #         # print()
-    #     except ValueError:
-    #         continue
 
     print("---")
     print("---")
@@ -229,26 +182,29 @@ def main():
 
     for y in range(1960, 2020, 10):
         try:
-            clusters: int = 10
+            clusters: int = 3
             top_terms =  10
             random_state: int = 1
             print(f"Clusters in range of year {y} - {y+15}")
-            features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
-                                           (year_title.year >= y and year_title.year < (y + 15))])
+
+            features_pre_transform = [year_title.title for year_title  in year_title_collection if
+                                           (year_title.year >= y and year_title.year < (y + 15))]
+            print(f"# features pre transfrom {features_pre_transform}")
+            features = vect.fit_transform(features_pre_transform)
 
             km = cluster.KMeans(n_clusters=clusters)
-            # km = cluster.KMeans(n_clusters=clusters)
             y_kmeans = km.fit_predict(features)
-
+            
             print(f"Top terms per cluster {y} - {y+15}:")
             order_centroids = km.cluster_centers_.argsort()[:, ::-1]
-            terms = vect.get_feature_names()
-
-            # color_list = ["red", "blue", "green", "cyan", "magenta", "yellow", "black", "purple", "pink", "navy"]
             
+            terms = vect.get_feature_names_out()
+
+            final_clusters = build_clusters(features_pre_transform, y_kmeans)
             for i in range(clusters):
-                top_five_words = [terms[ind] for ind in order_centroids[i, :top_terms]]
-                print(f"Cluster {i}: {top_five_words}")
+                sample = final_clusters[i][:3]
+                # top_five_words = [terms[ind] for ind in order_centroids[i, :top_terms]]
+                print(f"Cluster {i}: {sample}")
 
             # reduce the features to 2D
             pca = PCA(n_components=2, random_state=random_state)
