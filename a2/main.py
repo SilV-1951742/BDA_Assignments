@@ -3,23 +3,18 @@ import re
 from html import unescape
 import argparse
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 from typing import NamedTuple, Final, List
 import os
 import time
 from nltk import word_tokenize
-from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-from nltk.util import pairwise
 from sklearn import cluster
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-from sklearn.metrics import pairwise_distances_argmin_min
 import numpy as np
-import pandas as pd
 import pickle
 
 
@@ -124,10 +119,7 @@ class year_title_generator:
 def generate_elbow_graph(pipeline, year_title_list):
     print("Creating elbow graph")
     plt.figure()
-    # for y in range(1960, 2020, 10):
-        # try:
-            # titles_hashed = hasher.fit_transform([year_title.title for year_title  in year_title_list if
-            #                                   (year_title.year >= y and year_title.year < (y + 15))])
+            
     titles_hashed = pipeline.fit_transform([year_title.title for year_title in year_title_list])
     elbow_list = {}
     legend_list = []
@@ -138,9 +130,6 @@ def generate_elbow_graph(pipeline, year_title_list):
                 
     plt.plot(list(elbow_list.keys()), list(elbow_list.values()))
     
-    #legend_list.append(f"{y} - {y+15}")
-        #except ValueError:
-         #   continue
     plt.xlabel("Number of clusters")
     plt.ylabel("Inertia")
     plt.title(f"Elbow graph")
@@ -171,11 +160,6 @@ class StemmedTfidfVectorizer(TfidfVectorizer):
 def plot_tsne_pca(data, labels, title):
     pca = PCA(n_components=2).fit_transform(data.todense())
     tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=2000).fit_transform(data)
-    
-    
-    #idx = np.random.choice(range(pca.shape[0]), size=300, replace=False)
-    #label_subset = labels[data.shape[0]]
-    # label_subset = [cm.hsv(i/max_label) for i in label_subset[idx]]
     
     f, ax = plt.subplots(1, 2, figsize=(14, 6))
     
@@ -262,9 +246,7 @@ def main():
             y_kmeans = km.fit_predict(features)
 
             print(f"Top terms per cluster {y} - {y+15}:")
-            #order_centroids = km.cluster_centers_.argsort()[:, ::-1]
             
-            #terms = vect.get_feature_names_out()
 
             final_clusters = build_clusters(features_pre_transform, y_kmeans, km.cluster_centers_)
             for i in range(kmeans_cluster_size[cluster_index] + 1):
@@ -279,21 +261,8 @@ def main():
                     print(f"\"{final_clusters[i][index]}\" - ", end="")
                 print()
                     
-            #plot_tsne_pca(features, y_kmeans, f'Clusters from {y} - {y + 15}')
             cluster_index += 1
-            # # reduce the features to 2D
-            # pca = PCA(n_components=2, random_state=random_state)
-            # reduced_features = pca.fit_transform(features.toarray())
 
-            # # reduce the cluster centers to 2D
-            # reduced_cluster_centers = pca.transform(km.cluster_centers_)
-
-            # plt.title(f'Clusters from {y} - {y + 15}')
-            
-            # plt.scatter(reduced_features[:,0], reduced_features[:,1], c=km.predict(features))
-            # plt.scatter(reduced_cluster_centers[:, 0], reduced_cluster_centers[:,1], marker='x', s=150, c='b')
-            
-            # plt.show()
             print()
             print()
         except ValueError:
