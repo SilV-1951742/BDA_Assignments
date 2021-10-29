@@ -122,7 +122,6 @@ def generate_elbow_graph(pipeline, year_title_list):
             
     titles_hashed = pipeline.fit_transform([year_title.title for year_title in year_title_list])
     elbow_list = {}
-    legend_list = []
     for k in range(1, 20):
         kmeans = cluster.KMeans(n_clusters=k)
         kmeans.fit(titles_hashed)
@@ -252,10 +251,8 @@ def main():
             for i in range(kmeans_cluster_size[cluster_index] + 1):
                 fc_transformed = vect.transform(final_clusters[i])
                 dist_centers = km.transform(fc_transformed)
-                #closest, _ =  pairwise_distances_argmin_min(km.cluster_centers_, fc_transformed)
                 sorted = dist_centers[:, i].argsort()[:top_terms]
                 
-                # sorted = np.argsort(dist_centers, axis=1)
                 print(f"Cluster {i}: ", end="")
                 for index in sorted:
                     print(f"\"{final_clusters[i][index]}\" - ", end="")
