@@ -3,10 +3,12 @@ import re
 from html import unescape
 import argparse
 import matplotlib.pyplot as plt
-from typing import NamedTuple, Final
+import matplotlib.cm as cm
+from typing import NamedTuple, Final, List
 import os
 import time
-from nltk import word_tokenize          
+from nltk import word_tokenize
+from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from sklearn import cluster
 #from sklearn.cluster import MiniBatchKMeans
@@ -14,7 +16,10 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 import numpy as np
+import pandas as pd
+import pickle
 
 
 arg_parser = argparse.ArgumentParser(description="BDA opdr1.")
@@ -152,13 +157,40 @@ class StemmedTfidfVectorizer(TfidfVectorizer):
         return lambda doc: (StemmedTfidfVectorizer.lemmatizer.lemmatize(w) for w in analyzer(doc))
 
     
+def plot_tsne_pca(data, labels, title):
+    max_label = max(labels)
+    #max_items = np.random.choice(range(data.shape[0]), size=3000, replace=False)
+    
+    pca = PCA(n_components=2).fit_transform(data.todense())
+    tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=2000).fit_transform(data)
+    
+    
+    #idx = np.random.choice(range(pca.shape[0]), size=300, replace=False)
+    #label_subset = labels[data.shape[0]]
+    # label_subset = [cm.hsv(i/max_label) for i in label_subset[idx]]
+    
+    f, ax = plt.subplots(1, 2, figsize=(14, 6))
+    
+    ax[0].scatter(pca[:, 0], pca[:, 1], c=labels)
+    ax[0].set_title(f"PCA {title}")
+    
+    ax[1].scatter(tsne[:, 0], tsne[:, 1], c=labels)
+    ax[1].set_title(f"TSNE {title}")
+
+    plt.show()
+
+    
 def main():
     args = arg_parser.parse_args()
     year_title_collection = []
-    with year_title_generator(args.dataset, args.chunksize) as titles:
-        for title in titles.title_iterator():
-            year_title_collection.append(title)
-
+    try:
+        year_title_collection = pickle.load(open("year_title.pkl", "rb"))
+    except (OSError, IOError) as e:
+        with year_title_generator(args.dataset, args.chunksize) as titles:
+            for title in titles.title_iterator():
+                year_title_collection.append(title)
+        pickle.dump(year_title_collection, open("year_title.pkl", "wb"))
+    
     print("Titles collected")
     print(f"Entries in filtered titles: {len(year_title_collection)}")
 
@@ -177,51 +209,27 @@ def main():
     # generate_elbow_graph(vect, year_title_collection)
 
     print("\r\nDBSCAN")
+    kmeans_cluster_size: List[int] = []
+    cluster_index = 0
+    for y in range(1960, 2020, 10):
+        try:
+            print(f"Clusters in range of year {y} - {y+15}")
+            features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
+                                                      (year_title.year >= y and year_title.year < (y + 15))])
 
-    # for y in range(1960, 2020, 10):
-    #     try:
-    #         print(f"Clusters in range of year {y} - {y+15}")
-    #         features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
-    #                                                   (year_title.year >= y and year_title.year < (y + 15))])
+            db = cluster.DBSCAN(eps=0.3, min_samples=10)
+            db.fit(features)
+            labels = db.labels_
 
-    #         db = cluster.DBSCAN(eps=0.3, min_samples=10)
-    #         # km = cluster.KMeans(n_clusters=clusters)
-    #         y_kmeans = db.fit_predict(features)
-    #         labels = db.labels_
+            no_clusters = len(np.unique(labels) )
+            no_noise = np.sum(np.array(labels) == -1, axis=0)
+            kmeans_cluster_size.append(no_clusters)
 
-    #         no_clusters = len(np.unique(labels) )
-    #         no_noise = np.sum(np.array(labels) == -1, axis=0)
+            print(f'Estimated no. of clusters: {no_clusters}')
+            print(f'Estimated no. of noise points: {no_noise}')
+        except ValueError:
+            continue
 
-    #         print(f'Estimated no. of clusters: {no_clusters}')
-    #         print(f'Estimated no. of noise points: {no_noise}')
-            
-    #         print(f"Top terms per cluster {y} - {y+15}:")
-    #         order_centroids = db.cluster_centers_.argsort()[:, ::-1]
-    #         # terms = vect.get_feature_names()
-
-    #         # color_list = ["red", "blue", "green", "cyan", "magenta", "yellow", "black", "purple", "pink", "navy"]
-            
-    #         # for i in range(clusters):
-    #         #     top_five_words = [terms[ind] for ind in order_centroids[i, :5]]
-    #         #     print(f"Cluster {i}: {top_five_words}")
-
-    #         # # reduce the features to 2D
-    #         # pca = PCA(n_components=2, random_state=random_state)
-    #         # reduced_features = pca.fit_transform(features.toarray())
-
-    #         # # reduce the cluster centers to 2D
-    #         # reduced_cluster_centers = pca.transform(km.cluster_centers_)
-
-    #         # plt.title(f'Clusters from {y} - {y + 15}')
-            
-    #         # plt.scatter(reduced_features[:,0], reduced_features[:,1], c=km.predict(features))
-    #         # plt.scatter(reduced_cluster_centers[:, 0], reduced_cluster_centers[:,1], marker='x', s=150, c='b')
-            
-    #         # plt.show()
-    #         # print()
-    #         # print()
-    #     except ValueError:
-    #         continue
 
     print("---")
     print("---")
@@ -229,16 +237,17 @@ def main():
 
     for y in range(1960, 2020, 10):
         try:
-            clusters: int = 10
             top_terms =  10
-            random_state: int = 1
+           
             print(f"Clusters in range of year {y} - {y+15}")
-            features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
-                                           (year_title.year >= y and year_title.year < (y + 15))])
-
-            km = cluster.KMeans(n_clusters=clusters)
-            # km = cluster.KMeans(n_clusters=clusters)
-            y_kmeans = km.fit_predict(features)
+            title_list: List[str] = [year_title.title for year_title  in year_title_collection if
+                          (year_title.year >= y and year_title.year < (y + 15))]
+                       
+            features = vect.fit_transform(title_list)
+            
+            km = cluster.KMeans(n_clusters=kmeans_cluster_size[cluster_index]) 
+            y_means = km.fit_predict(features)
+            
 
             print(f"Top terms per cluster {y} - {y+15}:")
             order_centroids = km.cluster_centers_.argsort()[:, ::-1]
@@ -246,23 +255,25 @@ def main():
 
             # color_list = ["red", "blue", "green", "cyan", "magenta", "yellow", "black", "purple", "pink", "navy"]
             
-            for i in range(clusters):
+            for i in range(kmeans_cluster_size[cluster_index]):
                 top_five_words = [terms[ind] for ind in order_centroids[i, :top_terms]]
                 print(f"Cluster {i}: {top_five_words}")
 
-            # reduce the features to 2D
-            pca = PCA(n_components=2, random_state=random_state)
-            reduced_features = pca.fit_transform(features.toarray())
+            plot_tsne_pca(features, y_means, f'Clusters from {y} - {y + 15}')
+            cluster_index += 1
+            # # reduce the features to 2D
+            # pca = PCA(n_components=2, random_state=random_state)
+            # reduced_features = pca.fit_transform(features.toarray())
 
-            # reduce the cluster centers to 2D
-            reduced_cluster_centers = pca.transform(km.cluster_centers_)
+            # # reduce the cluster centers to 2D
+            # reduced_cluster_centers = pca.transform(km.cluster_centers_)
 
-            plt.title(f'Clusters from {y} - {y + 15}')
+            # plt.title(f'Clusters from {y} - {y + 15}')
             
-            plt.scatter(reduced_features[:,0], reduced_features[:,1], c=km.predict(features))
-            plt.scatter(reduced_cluster_centers[:, 0], reduced_cluster_centers[:,1], marker='x', s=150, c='b')
+            # plt.scatter(reduced_features[:,0], reduced_features[:,1], c=km.predict(features))
+            # plt.scatter(reduced_cluster_centers[:, 0], reduced_cluster_centers[:,1], marker='x', s=150, c='b')
             
-            plt.show()
+            # plt.show()
             print()
             print()
         except ValueError:
