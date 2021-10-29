@@ -10,13 +10,14 @@ import time
 from nltk import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
+from nltk.util import pairwise
 from sklearn import cluster
-#from sklearn.cluster import MiniBatchKMeans
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
+from sklearn.metrics import pairwise_distances_argmin_min
 import numpy as np
 import pandas as pd
 import pickle
@@ -149,13 +150,23 @@ def generate_elbow_graph(pipeline, year_title_list):
 def tokenize(raw):
     return [w.lower() for w in word_tokenize(raw) if w.isalpha()]
 
+
+def build_clusters(features, labels):
+    clusters = {}
+    for i in range(len(labels)):
+        if labels[i] in clusters:
+            clusters[labels[i]].append(features[i])
+        else:
+            clusters[labels[i]] = [features[i]]
+    return clusters
+
+
 class StemmedTfidfVectorizer(TfidfVectorizer):
     lemmatizer = WordNetLemmatizer()
     
     def build_analyzer(self):
         analyzer = super(StemmedTfidfVectorizer, self).build_analyzer()
         return lambda doc: (StemmedTfidfVectorizer.lemmatizer.lemmatize(w) for w in analyzer(doc))
-
     
 def plot_tsne_pca(data, labels, title):
     max_label = max(labels)
@@ -230,7 +241,6 @@ def main():
         except ValueError:
             continue
 
-
     print("---")
     print("---")
     print("\r\nKMeans")
@@ -240,26 +250,27 @@ def main():
             top_terms =  10
            
             print(f"Clusters in range of year {y} - {y+15}")
-            title_list: List[str] = [year_title.title for year_title  in year_title_collection if
-                          (year_title.year >= y and year_title.year < (y + 15))]
-                       
-            features = vect.fit_transform(title_list)
-            
-            km = cluster.KMeans(n_clusters=kmeans_cluster_size[cluster_index]) 
-            y_means = km.fit_predict(features)
-            
+
+            features_pre_transform: List[str]  = [year_title.title for year_title  in year_title_collection if
+                                           (year_title.year >= y and year_title.year < (y + 15))]
+            print(f"# features pre transfrom {features_pre_transform}")
+            features = vect.fit_transform(features_pre_transform)
+
+            km = cluster.KMeans(n_clusters=kmeans_cluster_size[cluster_index])
+            y_kmeans = km.fit_predict(features)
 
             print(f"Top terms per cluster {y} - {y+15}:")
             order_centroids = km.cluster_centers_.argsort()[:, ::-1]
-            terms = vect.get_feature_names()
-
-            # color_list = ["red", "blue", "green", "cyan", "magenta", "yellow", "black", "purple", "pink", "navy"]
             
-            for i in range(kmeans_cluster_size[cluster_index]):
-                top_five_words = [terms[ind] for ind in order_centroids[i, :top_terms]]
-                print(f"Cluster {i}: {top_five_words}")
+            terms = vect.get_feature_names_out()
 
-            plot_tsne_pca(features, y_means, f'Clusters from {y} - {y + 15}')
+            final_clusters = build_clusters(features_pre_transform, y_kmeans)
+            for i in range(clusters):
+                sample = final_clusters[i][:3]
+                # top_five_words = [terms[ind] for ind in order_centroids[i, :top_terms]]
+                print(f"Cluster {i}: {sample}")
+
+            plot_tsne_pca(features, y_kmeans, f'Clusters from {y} - {y + 15}')
             cluster_index += 1
             # # reduce the features to 2D
             # pca = PCA(n_components=2, random_state=random_state)
