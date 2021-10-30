@@ -1,0 +1,114 @@
+% Created 2021-10-10 Sun 18:03
+% Intended LaTeX compiler: pdflatex
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage[sfdefault]{biolinum}
+\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=true,factor=1100,stretch=10,shrink=10]{microtype}
+\author{Sil Vaes en Maarten Evenepoel}
+\date{\today}
+\title{Verslag BDA opdracht 2}
+\hypersetup{
+ pdfauthor={Sil Vaes en Maarten Evenepoel},
+ pdftitle={Verslag BDA opdracht 2},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 29.0.50 (Org mode 9.4.6)}, 
+ pdflang={English}}
+\begin{document}
+
+\maketitle
+\setlength\parindent{0pt}
+
+Voor dit project was het de bedoeling om de topic drift binnen een gegeven wetenschappelijk onderzoeksveld doorheen de tijd te bestuderen. Wij hebben ervoor gekozen om voor deze opdracht te topic drift binnen het onderzoeksveld rond Data Mining te bestuderen. 
+
+\section{Aanpak}
+
+Om dit probleem op te lossen hebben we gebruik gemaakt van het k-means clustering algoritme. Het idee is om artikels uit de brondata samen te clusteren wanneer deze op elkaar gelijken op basis van de titels van de artikels. Een cluster stelt in dit geval een verzameling artikels voor die op elkaar gelijken, en dus wellicht over eenzelfde of gelijkaardig topic gaan. Als we dit dan doen door artikels in periodes van 15 jaar apart te beschouwen en te clusteren, krijgen we een overzicht van de verschillende topics die voorkomen in elke periode van 15 jaar. Met deze informatie kunnen we vervolgens dan ook de topic drift observeren van topics binnen data mining doorheen de tijd. \\
+
+Vooraleer we effectief data kunnen clusteren is er wat pre-processing nodig bij het inladen van de data. We gaan immers niet werken met de gehele dblp.xml dataset, maar enkel met de Data Mining gerelateerde artikels. De eerste stap die we toepassen is dan ook het extracten van enkel de data mining gerelateerde artikels uit de brondata. Dit doen we door de artikels te filteren op hun key, en te controleren of de key een van de volgende values bevat, zoals gegeven in de opgave: KDD, PKDD, ICDM, SDM. \\
+
+Vervolgens voeren we een feature extraction uit op de titels van de overblijvende documenten met behulp van een \hyperlink{https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html}{TFIDF vectorizer}. De vectorizer die we gebruiken returned voor elk artikel een matrix aan features behorende tot het betreffende artikel. Dit wil zeggen dat elk artikel dus wordt voorgesteld door een matrix aan numerieke vectors of die het belang van verschillende gemeten features in de titels voorstelt. Het k-means algoritme dat we hierop volgend gebruiken kan deze features gebruiken om de onderlinge afstand tussen artikels tijdens het clusteren te helpen bepalen. \\
+
+Wanneer we gebruik maken van k-means moeten we op voorhand twee parameters beslissen, namelijk welke afstandsdefinitie we gebruiken, en in hoeveel clusters we de data willen laten opdelen door het algoritme. In onze implementatie maken we gebruiken van de standaard afstandsdefinitie die ingebakken zit in de kmeans module van sklearn, dus de euclidische afstand tussen de feature matrices die de verschillende artikel titels voorstellen. Daarnaast moeten we ook beslissen in hoeveel clusters we de data willen opdelen. Hiervoor bestaan verschillende methoden. Wij hebben ervoor gekozen het DBSCAN algoritme te gebruiken om het juiste aantal clusters voor elke decade die we gaan clusteren te bepalen. 
+% TODO: DBSCAN procedure hier uitleggen
+
+Tot slot kunnen we overgaan tot het effectief clusteren van data. Zoals eerder gezegd beschouwen we de inputdata in periodes van 15 jaar. Ook laten we de verschillende periodes die we beschouwen overlappen met een overlap van 5 jaar. Concreet gaan ge we dus data clusteren over volgende periodes: 1960-1975, 1970-1975, ..., 2010-2025. Per tijdesperiode berekenen we dan zoals eerder gezegd de nodige aantal clusters met het DBSCAN algoritme en voeren we kmeans op de data in de betreffende tijdsperiode uit. 
+
+\section{Resultaten en Output}
+
+We hebben ons programma uitgevoerd op de gehele DBLP dataset. De output die geleverd werd is de volgende:
+
+\begin{verbatim}
+KMeans
+Clusters in range of year 1960 - 1975
+118 titles in this range
+Top terms per cluster 1960 - 1975:
+Cluster 0: "Title, Contents." - "Title, Contents." - "Title, Contents." - "Title, Contents." - "Title, Contents." - 
+Cluster 1: "First SIGFIDET Meeting, SJCC '69 / Second SIGFIDET Meeting, ACM '69." - "Review of SIGFIDET meeting at FJCC/71." - "Report on SIGFIDET Meeting, SJCC, 1972." - "Call for Papers: 1972 ACM SIGFIDET Workshop on Data Description, Access and Control." - "Call for Papers: ACM SIGFIDET Workshop on Data Description, Access and Control 1974." - 
+Cluster 2: "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - 
+
+
+Clusters in range of year 1970 - 1985
+367 titles in this range
+Top terms per cluster 1970 - 1985:
+Cluster 0: "From the Chairman." - "Title, Contents." - "Title, Contents." - "Title, Contents." - "Title, Contents." - 
+Cluster 1: "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - 
+Cluster 2: "Chairman's Column." - "Chairman's Column." - "Chairman's Column." - "Chairman's Column." - "Chairman's Column." - 
+Cluster 3: "Research Directions in Data Base Management Systems." - "From Natural Language Requirements to good Data Base Definitions - A Data Base Design Methodology." - "What is a Data Base (Tutorial from ACM 1972)." - "Administering a Distributed Data Base Management System." - "Architecture of Future Data Base Systems." - 
+
+
+Clusters in range of year 1980 - 1995
+1815 titles in this range
+Top terms per cluster 1980 - 1995:
+Cluster 0: "Processing Real-Time, Non-Aggregate Queries with Time-Constraints in CASE-DB." - "Query Processing for Temporal Databases." - "Semantic Query Processing in Object-Oriented Database Systems." - "Dynamic Query Optimization in Rdb/VMS." - "Semantic Query Optimization in Recursive Databases." - 
+Cluster 1: "Approaches to Design of Real-Time Database Systems." - "Database Integration in a Distributed Heterogeneous Database System." - "Replicated Data Management in Distributed Database Systems." - "Issues and Approaches to Design of Real-Time Database Systems." - "Audio/Video Databases: An Object-Oriented Approach." - 
+Cluster 2: "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - 
+Cluster 3: "Title" - "O2, an Object-Oriented Data Model." - "Implementation of a Graph-Based Data Model for Complex Objects." - "Comparison-Criteria for Semantic Data Models." - "A Fault-Tolerant Algorithm for Replicated Data Management." - 
+
+
+Clusters in range of year 1990 - 2005
+3842 titles in this range
+Top terms per cluster 1990 - 2005:
+Cluster 0: "The ORDB-Based SFB-501-Reuse-Repository." - "O-O, What Have They Done to DB2?" - "." - "." - "Messaging/Queuing in Oracle8." - 
+Cluster 1: "Composing Web services on the Semantic Web." - ""Modeling-by-Patterns" of Web Applications." - "Web Information Retrieval." - "Distributed Query Processing on the Web." - "Efficient Queries over Web Views." - 
+Cluster 2: "Rules in Database Systems." - "MPEG-7 and Multimedia Database Systems." - "Audio/Video Databases: An Object-Oriented Approach." - "What's Next in XML and Databases?" - "Gaming-Simulations of Multi-Agent Information Systems using Large Databases: The Concept and Database Algorithms." - 
+Cluster 3: "Time-Constrained Query Processing in CASE-DB." - "Processing Real-Time, Non-Aggregate Queries with Time-Constraints in CASE-DB." - "Preference-Driven Query Processing." - "A Graph Query Language and Its Query Processing." - "Dynamic Query Optimization and Query Processing in Multidatabase Systems." - 
+Cluster 4: "A Semi-monad for Semi-structured Data." - "Peer-to-Peer Data Management." - "Relational data sharing in peer-based data management systems." - "Data Sharing and Querying for Peer-to-Peer Data Management Systems." - "Data Organization and Access for Efficient Data Mining." - 
+
+
+Clusters in range of year 2000 - 2015
+5791 titles in this range
+Top terms per cluster 2000 - 2015:
+Cluster 0: "-closeness." - "-trees." - "-tree." - "-Synopses System." - "The ORDB-Based SFB-501-Reuse-Repository." - 
+Cluster 1: "F2DB: The Flash-Forward Database System." - "What's Next in XML and Databases?" - "Main-memory database systems." - "Towards Preference-aware Relational Databases." - "Skyline-join in distributed databases." - 
+Cluster 2: "Trie-based similarity search and join." - "Keyword Search on Spatial Databases." - "Similarity Search in Multimedia Databases." - "Top-k keyword search over probabilistic XML data." - "Toward industrial-strength keyword search systems over relational data." - 
+Cluster 3: "Optimal-Nearest-Neighbor Queries." - "Privacy-Preserving Top-K Queries." - "Skyline-based Peer-to-Peer Top-k Query Processing." - "Towards multi-scale query processing." - "-NN query processing." - 
+Cluster 4: "A Semi-monad for Semi-structured Data." - "A system for energy-efficient data management." - "Peer-to-Peer Data Management." - "Simulation data as data streams." - "Data Sharing and Querying for Peer-to-Peer Data Management Systems." - 
+
+
+Clusters in range of year 2010 - 2025
+5473 titles in this range
+Top terms per cluster 2010 - 2025:
+Cluster 0: "-closeness." - "Metadata-as-a-Service." - "." - "Type-aware Web-search." - "Towards web-scale how-provenance." - 
+Cluster 1: "Real-Time Data Management for Big Data." - "A system for energy-efficient data management." - "Distance-Based Data Mining over Encrypted Data." - "Fast data series indexing for in-memory data." - "Distributed data management in 2020?" - 
+Cluster 2: "Sort-sharing-aware query processing." - "ML-based Cross-Platform Query Optimization." - "Provenance-Aware Query Optimization." - "Indexing Query Graphs to Speedup Graph Query Processing." - "Skyline queries, front and back." - 
+
+\end{verbatim}
+
+The above output was generated on a machine running an Intel Core i5-4690K@4.3GHz in combination with 16GB of DD3 Dual Channel Memory. The OS was Ubuntu 21.10. When running the program the memory usage climbs to a maximum of 1GB. The memory usage can stay this low since we're not actually loading the entire DBLP dataset, but only fetching the relevant articles. Besides this, we're parsing the DBLP dataset in chunks of 1000MB only. The total runtime of the program was 2m12s.
+
+
+\end{document}
