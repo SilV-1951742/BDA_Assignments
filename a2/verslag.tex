@@ -49,13 +49,13 @@ Tot slot kunnen we overgaan tot het effectief clusteren van data. Zoals eerder g
 
 \section{Resultaten en Output}
 
-We hebben ons programma uitgevoerd op de gehele DBLP dataset. De output die geleverd werd is de volgende:
+We hebben ons programma uitgevoerd op de gehele DBLP dataset. Verder is het programma uitgevoerd op een machine met een Intel Core i5-4690K@4.3GHz in combinatie met 16GB DD3 Dual Channel memory. Het gebruikte besturingssysteem was Ubuntu 21.10. Overigens zagen we dat het piek geheugenverbruik stijgt tot slechts 1GB. Dit komt omdat we de DBLP dataset verwerken in chuncks van 1GB, en de selectie artikels die over Data Mining gaan kleiner is dan 1GB. De gemeten runtime van het programma bedraagt 2 min en 12 sec. De output die gegeven wordt is telkens het aantal clusters per tijdsperiode, en enkele representatieve artikels binnen elke cluster binnen de bijhorende tijdsperiodes. De bekomen output is de volgende:
 
 \begin{verbatim}
 KMeans
 Clusters in range of year 1960 - 1975
 118 titles in this range
-Top terms per cluster 1960 - 1975:
+Top articles per cluster 1960 - 1975:
 Cluster 0: "Title, Contents." - "Title, Contents." - "Title, Contents." - "Title, Contents." - "Title, Contents." - 
 Cluster 1: "First SIGFIDET Meeting, SJCC '69 / Second SIGFIDET Meeting, ACM '69." - "Review of SIGFIDET meeting at FJCC/71." - "Report on SIGFIDET Meeting, SJCC, 1972." - "Call for Papers: 1972 ACM SIGFIDET Workshop on Data Description, Access and Control." - "Call for Papers: ACM SIGFIDET Workshop on Data Description, Access and Control 1974." - 
 Cluster 2: "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - 
@@ -63,7 +63,7 @@ Cluster 2: "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's
 
 Clusters in range of year 1970 - 1985
 367 titles in this range
-Top terms per cluster 1970 - 1985:
+Top articles per cluster 1970 - 1985:
 Cluster 0: "From the Chairman." - "Title, Contents." - "Title, Contents." - "Title, Contents." - "Title, Contents." - 
 Cluster 1: "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - 
 Cluster 2: "Chairman's Column." - "Chairman's Column." - "Chairman's Column." - "Chairman's Column." - "Chairman's Column." - 
@@ -72,7 +72,7 @@ Cluster 3: "Research Directions in Data Base Management Systems." - "From Natura
 
 Clusters in range of year 1980 - 1995
 1815 titles in this range
-Top terms per cluster 1980 - 1995:
+Top articles per cluster 1980 - 1995:
 Cluster 0: "Processing Real-Time, Non-Aggregate Queries with Time-Constraints in CASE-DB." - "Query Processing for Temporal Databases." - "Semantic Query Processing in Object-Oriented Database Systems." - "Dynamic Query Optimization in Rdb/VMS." - "Semantic Query Optimization in Recursive Databases." - 
 Cluster 1: "Approaches to Design of Real-Time Database Systems." - "Database Integration in a Distributed Heterogeneous Database System." - "Replicated Data Management in Distributed Database Systems." - "Issues and Approaches to Design of Real-Time Database Systems." - "Audio/Video Databases: An Object-Oriented Approach." - 
 Cluster 2: "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - "Editor's Notes." - 
@@ -81,7 +81,7 @@ Cluster 3: "Title" - "O2, an Object-Oriented Data Model." - "Implementation of a
 
 Clusters in range of year 1990 - 2005
 3842 titles in this range
-Top terms per cluster 1990 - 2005:
+Top articles per cluster 1990 - 2005:
 Cluster 0: "The ORDB-Based SFB-501-Reuse-Repository." - "O-O, What Have They Done to DB2?" - "." - "." - "Messaging/Queuing in Oracle8." - 
 Cluster 1: "Composing Web services on the Semantic Web." - ""Modeling-by-Patterns" of Web Applications." - "Web Information Retrieval." - "Distributed Query Processing on the Web." - "Efficient Queries over Web Views." - 
 Cluster 2: "Rules in Database Systems." - "MPEG-7 and Multimedia Database Systems." - "Audio/Video Databases: An Object-Oriented Approach." - "What's Next in XML and Databases?" - "Gaming-Simulations of Multi-Agent Information Systems using Large Databases: The Concept and Database Algorithms." - 
@@ -91,7 +91,7 @@ Cluster 4: "A Semi-monad for Semi-structured Data." - "Peer-to-Peer Data Managem
 
 Clusters in range of year 2000 - 2015
 5791 titles in this range
-Top terms per cluster 2000 - 2015:
+Top articles per cluster 2000 - 2015:
 Cluster 0: "-closeness." - "-trees." - "-tree." - "-Synopses System." - "The ORDB-Based SFB-501-Reuse-Repository." - 
 Cluster 1: "F2DB: The Flash-Forward Database System." - "What's Next in XML and Databases?" - "Main-memory database systems." - "Towards Preference-aware Relational Databases." - "Skyline-join in distributed databases." - 
 Cluster 2: "Trie-based similarity search and join." - "Keyword Search on Spatial Databases." - "Similarity Search in Multimedia Databases." - "Top-k keyword search over probabilistic XML data." - "Toward industrial-strength keyword search systems over relational data." - 
@@ -101,14 +101,23 @@ Cluster 4: "A Semi-monad for Semi-structured Data." - "A system for energy-effic
 
 Clusters in range of year 2010 - 2025
 5473 titles in this range
-Top terms per cluster 2010 - 2025:
+Top articles per cluster 2010 - 2025:
 Cluster 0: "-closeness." - "Metadata-as-a-Service." - "." - "Type-aware Web-search." - "Towards web-scale how-provenance." - 
 Cluster 1: "Real-Time Data Management for Big Data." - "A system for energy-efficient data management." - "Distance-Based Data Mining over Encrypted Data." - "Fast data series indexing for in-memory data." - "Distributed data management in 2020?" - 
 Cluster 2: "Sort-sharing-aware query processing." - "ML-based Cross-Platform Query Optimization." - "Provenance-Aware Query Optimization." - "Indexing Query Graphs to Speedup Graph Query Processing." - "Skyline queries, front and back." - 
 
 \end{verbatim}
 
-The above output was generated on a machine running an Intel Core i5-4690K@4.3GHz in combination with 16GB of DD3 Dual Channel Memory. The OS was Ubuntu 21.10. When running the program the memory usage climbs to a maximum of 1GB. The memory usage can stay this low since we're not actually loading the entire DBLP dataset, but only fetching the relevant articles. Besides this, we're parsing the DBLP dataset in chunks of 1000MB only. The total runtime of the program was 2m12s.
+\subsection{Bespreking van de resultaten}
+ 
+We hebben k-means 6 keer uitgevoerd, telkens op periodes van 15 jaar gaande van 1960-1975 t.e.m. 2010-2025. We zien dat er in de eerste twee tijdsperiodes relatief weinig artikels aanwezig waren (118 en 367 artikels respectievelijk), wat het in de eerste plaats al onwaarschijnlijker maakt dat er zeer sterk onderscheidbare clusters zouden te vinden zijn. Een tweede gedrag dat we observeren is dat er vooral in de eerste twee tijdsperiodes die we beschouwen vaak clusters worden gemaakt op tekst snippets in de titels die niet aan een Data Mining topic zijn gerelateerd. Voorbeelden hiervan zijn clusters die gemaakt worden op features in titels als "Title, Contents." en "Editor's Notes". In een tweede revisie van ons algoritme zou het een beter idee zijn om deze tekst snippets misschien uit de input te halen, zodat deze het clustering algoritme niet verkeerd gaan be\"invloeden. Het feit dat titels dergelijke tekstuele features bevatten lijkt ook een eigenschap te zijn van oudere artikels tussen 1960 en 1995. In zekere zin toont dit wel mooi aan dat het clustering algoritme correct zijn werk doet en clusters maakt op basis van gelijkaardige of overeenkomstige features in artikel titels. \\
+
+De 3 laatste tijdsperiodes (1990-2005 t.e.m. 2010-2025) tonen een beter representatief resultaat. Ook het aantal vereiste clusters is hier iets groter, met in 2 van de 3 gevallen 5 clusters, en dus ook 5 verschillende topics. Om er een voorbeeld uit te halen: cluster 1 uit periode 2000-2015 lijkt vooral artikels te bevatten over data management, wat op het topic data management lijkt te wijzen voor deze cluster. \\
+Een neveneffect dat we opnieuw waarnemen is dat er ook clusters worden gevormd op basis van features die niet topic gerelateerd zijn. Een voorbeeld is cluster 2 uit de periode 2000-2015. Deze cluster lijkt te zijn gevormd op basis van de feature dat alle titles woorden bevatten die met een liggend streepje zijn verbonden. Dit heeft uiteraard niets met data mining te maken. Dit is ook een fout die met wat data cleaning mogelijks voorkomen had kunnen worden. 
+
+\section{Conclusie}
+Uit de resultaten valt op dat de clustering in principe wel goed werkt. Het is duidelijk dat het programma correct artikels gaat samen clusteren op basis van tekstuele features in de titels. Echter, het is moeilijk features uit de titels te extracten die effectief aan de semantiek van de artikels gerelateerd zijn en niet louter over tekstuele eigenschappen gaan (zoals het voorkomen van liggende streepjes, voorkomen van woordgroepen als "Editor's Notes.", etc..). We denken hierdoor dat het gebruiken van titels van artikels niet het meest optimale onderdeel van een artikel is om te gebruiken voor het clusteren. Het zou beter zijn moest de input data bijvoorbeeld voor elk artikel een aantal tags bevatten over waar het artikel over gaat. Dit zou wellicht zorgen voor een veel accuratere clustering voor de opgestelde probleemstelling. Een ander alternatief zou zijn om features uit de volledige inhoud van de tekst van de artikels te halen, en niet enkel uit de titels. Echter zijn in de DBLP dataset die we gebruikt hebben noch tags noch de effectieve inhoud van de artikels beschikbaar en konden we deze hypothese dan ook niet uittesten. 
+
 
 
 \end{document}
