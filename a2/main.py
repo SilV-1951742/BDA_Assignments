@@ -42,6 +42,9 @@ DB_REGEX: Final =  re.compile(r"(journals\/sigmod|journals\/vldb|conf\/edbt|conf
 BLACKLIST: Final = [".", "Chair's Message.", "Editor's Notes.", "Chairman's Column.", "Title, Contents.", "Chairman's Message.", "Editor's Remarks.", "Letter.", "Announcements.", "Meeting Announcements", "Meeting Announcements and Calls for Papers." "-closeness.", "-diversity."]
 
 class year_title_tuple(NamedTuple):
+    """
+    NamedTuple to hold title-year pairs
+    """
     year: int
     title: str
 
@@ -50,6 +53,9 @@ class year_title_except(Exception):
     pass
 
 class year_title_generator:
+    """
+    Class to generate title_year tuples
+    """
     def __init__(self, filename: str, chunk_size: int):
         self.filename = filename
         print(f"Filesize: {os.path.getsize(filename)//(1024*1024)} MB")
@@ -124,6 +130,9 @@ class year_title_generator:
         return True
 
 def generate_elbow_graph(pipeline, title_list, interval):
+    """
+    Function to generate elbow graphs of kmeans
+    """
     print("Creating elbow graph")
     plt.figure()
             
@@ -144,10 +153,18 @@ def generate_elbow_graph(pipeline, title_list, interval):
     plt.title(f"Elbow graph for time periode {interval}")
     plt.show()
 
-# lemmatizer = WordNetLemmatizer()
+def print_data(data, vectorizer):
+    """
+    Function to print cluster data
+    """
+    print("Printing data")
 
-# def tokenize(w):
-#     return lemmatizer.lemmatize(w.lower())
+    X = vectorizer.fit_transform([year_title.title for year_title in data]).todense()
+    
+    pca = PCA(n_components=2).fit(X)
+    data2D = pca.transform(X)
+    plt.scatter(data2D[:,0], data2D[:,1])
+    plt.show()
 
 
 def build_clusters(features, labels, centres):
@@ -169,6 +186,9 @@ class StemmedHasher(HashingVectorizer):
     
     
 def plot_tsne_pca(data, labels, title):
+    """
+    Function to plot both pca and tsne reduced data
+    """
     pca = PCA(n_components=2).fit_transform(data.todense())
     tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=200).fit_transform(data)
     
@@ -185,6 +205,8 @@ def plot_tsne_pca(data, labels, title):
     
 def main():
     args = arg_parser.parse_args()
+
+    # Get title-year pairs
     year_title_collection = []
     try:
         year_title_collection = pickle.load(open("year_title.pkl", "rb"))
@@ -197,30 +219,20 @@ def main():
     print("Titles collected")
     print(f"Entries in filtered titles: {len(year_title_collection)}")
 
-    my_stop_words = ENGLISH_STOP_WORDS
 
+    # Setup the vectorizer
+    my_stop_words = ENGLISH_STOP_WORDS.union(["application", "title", "contents", "editor", "chairman", "chair", "vice", "note", "conference"])
     hasher = StemmedHasher(n_features=10000,
                            stop_words=my_stop_words, alternate_sign=False,
                            norm=None, binary=False)
     vect = make_pipeline(hasher, TfidfTransformer())
-
     
-    #vect = HashingVectorizer(norm='l2', stop_words=my_stop_words, ngram_range=(1, 1))
-    #vect = StemmedTfidfVectorizer(norm='l2', use_idf=False, stop_words=my_stop_words, ngram_range=(1, 1), tokenizer=tokenize)
-    
-    # print("Printing data")
-
-    # X = vect.fit_transform([year_title.title for year_title in year_title_collection]).todense()
-    
-    # pca = PCA(n_components=2).fit(X)
-    # data2D = pca.transform(X)
-    # plt.scatter(data2D[:,0], data2D[:,1])
-    # plt.show()
-
+    # ----
+    # ---- DBSCAN implementation, does not work well ----
+    # ----
     # print("\r\nDBSCAN\r\n")
     # kmeans_cluster_size: List[int] = []
-    cluster_index = 0
-    # for y in range(1960, 2020, 10):
+        # for y in range(1960, 2020, 10):
     #     try:
     #         print(f"DBSCAN in range of year {y} - {y+15}")
     #         features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
@@ -249,35 +261,36 @@ def main():
 
     # print("\r\n---")
     # print("---")
-    # print("\r\nKMeans")
+    
+    print("\r\nKMeans")
 
     print("Elbow criterion per time period")
-
+    # Generate the elbow graphs, comment this out if you want to quickly run kmeans
     for y in range(1960, 2020, 10):
         generate_elbow_graph(vect, [year_title.title for year_title  in year_title_collection if
                                     (year_title.year >= y and year_title.year < (y + 15))], f"{y} - {y+15}")
 
+    # Loop per time interval
     centres = [8, 11, 13, 14, 15, 16]
+    cluster_index = 0
+    # Amount of terms to print
+    top_terms =  5
     for y in range(1960, 2020, 10):
         try:
-            top_terms =  5
-           
+            # Get the relevant entries
             features_pre_transform: List[str]  = [year_title.title for year_title  in year_title_collection if
                                                   (year_title.year >= y and year_title.year < (y + 15))]
 
             print(f"Clusters in range of year {y} - {y+15}\r\n{len(features_pre_transform)} titles in this range")
-            #print(f"# features pre transfrom {features_pre_transform}")
+            # Vectorize the filtered entries
             features = vect.fit_transform(features_pre_transform)
 
-            #km = cluster.KMeans(n_clusters=kmeans_cluster_size[cluster_index] + 1)
-            km = cluster.MiniBatchKMeans(n_clusters=centres[cluster_index])
+            # Actual KMeans
+            km = cluster.MiniBatchKMeans(n_clusters=centres[cluster_index], n_init=15, max_iter=200)
             y_kmeans = km.fit_predict(features)
 
-            print(f"Top terms per cluster {y} - {y+15}:")
-            
-
+            # Print the top titles per cluster
             final_clusters = build_clusters(features_pre_transform, y_kmeans, km.cluster_centers_)
-            #for i in range(kmeans_cluster_size[cluster_index] + 1):
             for i in range(centres[cluster_index]):
                 fc_transformed = vect.transform(final_clusters[i])
                 dist_centers = km.transform(fc_transformed)
@@ -290,6 +303,8 @@ def main():
                     
             cluster_index += 1
 
+            # Plot kmeans result by reducing components
+            # PCA is faster than TSNE
             #tsne = TSNE(n_components=2, verbose=0, perplexity=100, n_iter=2000).fit_transform(features)
             pca = PCA(n_components=2).fit_transform(features.todense())
             plt.scatter(pca[:, 0], pca[:, 1], c=y_kmeans)
