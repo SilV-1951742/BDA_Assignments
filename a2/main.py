@@ -9,12 +9,13 @@ import time
 from nltk import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from sklearn import cluster
-from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.pipeline import make_pipeline
+from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-import numpy as np
 import pickle
 
 
@@ -37,6 +38,8 @@ DATA_MINING_KEYS: Final = ["journals/sigkdd", "conf/pkdd", "conf/icdm", "conf/sd
 DATA_MINING_REGEX: Final =  re.compile(r"(journals\/sigkdd|conf\/pkdd|conf\/icdm|conf\/sdm)")
 DB_KEYS: Final = ["journals/sigmod", "journals/vldb", "conf/edbt", "conf/icde"]
 DB_REGEX: Final =  re.compile(r"(journals\/sigmod|journals\/vldb|conf\/edbt|conf\/icde)")
+
+BLACKLIST: Final = [".", "Chair's Message.", "Editor's Notes.", "Chairman's Column.", "Title, Contents.", "Chairman's Message.", "Editor's Remarks.", "Letter.", "Announcements.", "Meeting Announcements", "Meeting Announcements and Calls for Papers." "-closeness.", "-diversity."]
 
 class year_title_tuple(NamedTuple):
     year: int
@@ -72,10 +75,14 @@ class year_title_generator:
         title_r = re.search(self.title_regex, xml_element)
         year_r = re.search(self.year_regex, xml_element)
 
-        if not title_r  or not year_r:
+        if not title_r or not year_r:
+            raise year_title_except()
+
+        title_str = str(title_r.group(1))
+        if title_str in BLACKLIST:
             raise year_title_except()
         
-        return year_title_tuple(int(year_r.group(1)), str(title_r.group(1)))
+        return year_title_tuple(int(year_r.group(1)), title_str)
 
     def check_key(self, xml_element) -> bool:
         if DATA_DB_BOOL == True:
@@ -116,27 +123,31 @@ class year_title_generator:
         self.fp.close()
         return True
 
-def generate_elbow_graph(pipeline, year_title_list):
+def generate_elbow_graph(pipeline, title_list, interval):
     print("Creating elbow graph")
     plt.figure()
             
-    titles_hashed = pipeline.fit_transform([year_title.title for year_title in year_title_list])
+    features = pipeline.fit_transform(title_list)
     elbow_list = {}
-    for k in range(1, 20):
-        kmeans = cluster.KMeans(n_clusters=k)
-        kmeans.fit(titles_hashed)
+    for k in range(1, 31):
+        kmeans = cluster.MiniBatchKMeans(n_clusters=k, n_init=15, max_iter=200)
+        kmeans.fit(features)
+        #label =  kmeans.labels_
+        #coeff = silhouette_score(features, label, metric='euclidean')
         elbow_list[k] = kmeans.inertia_
+        #print(f"For n_clusters={k} in range {interval}, The Silhouette Coefficient is {coeff}")
                 
     plt.plot(list(elbow_list.keys()), list(elbow_list.values()))
     
     plt.xlabel("Number of clusters")
     plt.ylabel("Inertia")
-    plt.title(f"Elbow graph")
+    plt.title(f"Elbow graph for time periode {interval}")
     plt.show()
 
+# lemmatizer = WordNetLemmatizer()
 
-def tokenize(raw):
-    return [w.lower() for w in word_tokenize(raw) if w.isalpha()]
+# def tokenize(w):
+#     return lemmatizer.lemmatize(w.lower())
 
 
 def build_clusters(features, labels, centres):
@@ -149,16 +160,17 @@ def build_clusters(features, labels, centres):
     return clusters
 
 
-class StemmedTfidfVectorizer(TfidfVectorizer):
+class StemmedHasher(HashingVectorizer):
     lemmatizer = WordNetLemmatizer()
     
     def build_analyzer(self):
-        analyzer = super(StemmedTfidfVectorizer, self).build_analyzer()
-        return lambda doc: (StemmedTfidfVectorizer.lemmatizer.lemmatize(w) for w in analyzer(doc))
+        analyzer = super(StemmedHasher, self).build_analyzer()
+        return lambda doc: (StemmedHasher.lemmatizer.lemmatize(w) for w in analyzer(doc))
+    
     
 def plot_tsne_pca(data, labels, title):
     pca = PCA(n_components=2).fit_transform(data.todense())
-    tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=2000).fit_transform(data)
+    tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=200).fit_transform(data)
     
     f, ax = plt.subplots(1, 2, figsize=(14, 6))
     
@@ -184,14 +196,17 @@ def main():
     
     print("Titles collected")
     print(f"Entries in filtered titles: {len(year_title_collection)}")
-    ed_note = 0
-    for elem in year_title_collection:
-        if elem.title == "Editor's Notes.":
-            ed_note += 1
-    print(f"Found {ed_note} editor's notes.")
 
-    my_stop_words = ENGLISH_STOP_WORDS.union(["application", "title", "contents", "editor", "chairman", "chair", "vice", "note", "conference"])
-    vect = StemmedTfidfVectorizer(norm='l2', use_idf=True, stop_words=my_stop_words, ngram_range=(1, 1), tokenizer=tokenize)
+    my_stop_words = ENGLISH_STOP_WORDS
+
+    hasher = StemmedHasher(n_features=10000,
+                           stop_words=my_stop_words, alternate_sign=False,
+                           norm=None, binary=False)
+    vect = make_pipeline(hasher, TfidfTransformer())
+
+    
+    #vect = HashingVectorizer(norm='l2', stop_words=my_stop_words, ngram_range=(1, 1))
+    #vect = StemmedTfidfVectorizer(norm='l2', use_idf=False, stop_words=my_stop_words, ngram_range=(1, 1), tokenizer=tokenize)
     
     # print("Printing data")
 
@@ -202,34 +217,47 @@ def main():
     # plt.scatter(data2D[:,0], data2D[:,1])
     # plt.show()
 
-    # generate_elbow_graph(vect, year_title_collection)
-
-    print("\r\nDBSCAN\r\n")
-    kmeans_cluster_size: List[int] = []
+    # print("\r\nDBSCAN\r\n")
+    # kmeans_cluster_size: List[int] = []
     cluster_index = 0
+    # for y in range(1960, 2020, 10):
+    #     try:
+    #         print(f"DBSCAN in range of year {y} - {y+15}")
+    #         features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
+    #                                        (year_title.year >= y and year_title.year < (y + 15))])
+
+    #         db = cluster.DBSCAN(eps=0.1, min_samples=5)
+    #         predict = db.fit_predict(features)
+    #         labels = db.labels_
+
+    #         no_clusters = len(np.unique(labels) )
+    #         no_noise = np.sum(np.array(labels) == -1, axis=0)
+
+            
+    #         kmeans_cluster_size.append(no_clusters)
+
+    #         print(f'Estimated no. of clusters: {no_clusters}')
+    #         print(f'Estimated no. of noise points: {no_noise}')
+
+    #         #tsne = TSNE(n_components=2, verbose=0, perplexity=5, n_iter=1000).fit_transform(features)
+    #         pca = PCA(n_components=2).fit_transform(features.todense())
+    #         plt.scatter(pca[:, 0], pca[:, 1], c=predict)
+
+    #         plt.show()
+    #     except ValueError:
+    #         continue
+
+    # print("\r\n---")
+    # print("---")
+    # print("\r\nKMeans")
+
+    print("Elbow criterion per time period")
+
     for y in range(1960, 2020, 10):
-        try:
-            print(f"DBSCAN in range of year {y} - {y+15}")
-            features = vect.fit_transform([year_title.title for year_title  in year_title_collection if
-                                                      (year_title.year >= y and year_title.year < (y + 15))])
+        generate_elbow_graph(vect, [year_title.title for year_title  in year_title_collection if
+                                    (year_title.year >= y and year_title.year < (y + 15))], f"{y} - {y+15}")
 
-            db = cluster.DBSCAN(eps=0.3, min_samples=10)
-            db.fit(features)
-            labels = db.labels_
-
-            no_clusters = len(np.unique(labels) )
-            no_noise = np.sum(np.array(labels) == -1, axis=0)
-            kmeans_cluster_size.append(no_clusters)
-
-            print(f'Estimated no. of clusters: {no_clusters}')
-            print(f'Estimated no. of noise points: {no_noise}')
-        except ValueError:
-            continue
-
-    print("---")
-    print("---")
-    print("\r\nKMeans")
-
+    centres = [8, 11, 13, 14, 15, 16]
     for y in range(1960, 2020, 10):
         try:
             top_terms =  5
@@ -241,14 +269,16 @@ def main():
             #print(f"# features pre transfrom {features_pre_transform}")
             features = vect.fit_transform(features_pre_transform)
 
-            km = cluster.KMeans(n_clusters=kmeans_cluster_size[cluster_index] + 1)
+            #km = cluster.KMeans(n_clusters=kmeans_cluster_size[cluster_index] + 1)
+            km = cluster.MiniBatchKMeans(n_clusters=centres[cluster_index])
             y_kmeans = km.fit_predict(features)
 
             print(f"Top terms per cluster {y} - {y+15}:")
             
 
             final_clusters = build_clusters(features_pre_transform, y_kmeans, km.cluster_centers_)
-            for i in range(kmeans_cluster_size[cluster_index] + 1):
+            #for i in range(kmeans_cluster_size[cluster_index] + 1):
+            for i in range(centres[cluster_index]):
                 fc_transformed = vect.transform(final_clusters[i])
                 dist_centers = km.transform(fc_transformed)
                 sorted = dist_centers[:, i].argsort()[:top_terms]
@@ -260,6 +290,10 @@ def main():
                     
             cluster_index += 1
 
+            #tsne = TSNE(n_components=2, verbose=0, perplexity=100, n_iter=2000).fit_transform(features)
+            pca = PCA(n_components=2).fit_transform(features.todense())
+            plt.scatter(pca[:, 0], pca[:, 1], c=y_kmeans)
+            plt.show()
             print()
             print()
         except ValueError:
