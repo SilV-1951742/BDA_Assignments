@@ -38,7 +38,15 @@
 \maketitle
 \setlength\parindent{0pt}
 
-Voor dit project was het de bedoeling om de topic drift binnen een gegeven wetenschappelijk onderzoeksveld doorheen de tijd te bestuderen. Wij hebben ervoor gekozen om voor deze opdracht de topic drift binnen het onderzoeksveld rond Data Mining te bestuderen. 
+Voor dit project was het de bedoeling om de topic drift binnen een gegeven wetenschappelijk onderzoeksveld doorheen de tijd te bestuderen. Wij hebben ervoor gekozen om voor deze opdracht de topic drift binnen het onderzoeksveld rond Data Mining te bestuderen.
+
+Hoe programma moet gerund zoals te zien in listing \ref{lst:run}, waar de dataset file en chunk size als argumenten mee moeten gegeven worden.
+Het programma zal dan de dataset file uitlezen, de tuples in een pickle file saven om bij de volgende run de dataset niet helemaal te moeten processen.
+Daarna zal het programma de elbow grafieken maken en uiteindelijk de daadwerkelijke clustering met het k-means algoritme.
+
+\begin{lstlisting}[caption={KMeans output},label={lst:run},breaklines]
+python main.py <dataset_file> <chunk_size>
+\end{lstlisting}
 
 \section{Aanpak}
 
@@ -113,47 +121,47 @@ Het zou beter zijn moest de input data bijvoorbeeld voor elk artikel een aantal 
 Dit zou wellicht zorgen voor een veel accuratere clustering voor de opgestelde probleemstelling. Een ander alternatief zou zijn om features uit de volledige inhoud van de tekst van de artikels te halen, en niet enkel uit de titels.
 Echter zijn in de DBLP dataset die we gebruikt hebben noch tags noch de effectieve inhoud van de artikels beschikbaar en konden we deze hypothese dan ook niet uittesten. 
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{pca_1960-1975.pdf}
-  \caption{Data van 1960-1975.}
-  \label{fig:1960}
-\end{figure}
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=\textwidth]{pca_1960-1975.pdf}
+%   \caption{Data van 1960-1975.}
+%   \label{fig:1960}
+% \end{figure}
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{pca_1970-1985.pdf}
-  \caption{Data van 1970-1985.}
-  \label{fig:1970}
-\end{figure}
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=\textwidth]{pca_1970-1985.pdf}
+%   \caption{Data van 1970-1985.}
+%   \label{fig:1970}
+% \end{figure}
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{pca_1980-1995.pdf}
-  \caption{Data van 1980-1995.}
-  \label{fig:1980}
-\end{figure}
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=\textwidth]{pca_1980-1995.pdf}
+%   \caption{Data van 1980-1995.}
+%   \label{fig:1980}
+% \end{figure}
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{pca_1990-2005.pdf}
-  \caption{Data van 1990-2005.}
-  \label{fig:1990}
-\end{figure}
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=\textwidth]{pca_1990-2005.pdf}
+%   \caption{Data van 1990-2005.}
+%   \label{fig:1990}
+% \end{figure}
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{pca_2000-2015.pdf}
-  \caption{Data van 2000-2015.}
-  \label{fig:2000}
-\end{figure}
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=\textwidth]{pca_2000-2015.pdf}
+%   \caption{Data van 2000-2015.}
+%   \label{fig:2000}
+% \end{figure}
 
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=\textwidth]{pca_2010-2025.pdf}
-  \caption{Data van 2010-2025.}
-  \label{fig:2010}
-\end{figure}
+% \begin{figure}[H]
+%   \centering
+%   \includegraphics[width=\textwidth]{pca_2010-2025.pdf}
+%   \caption{Data van 2010-2025.}
+%   \label{fig:2010}
+% \end{figure}
 
 
 \appendix
