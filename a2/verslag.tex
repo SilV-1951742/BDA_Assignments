@@ -85,7 +85,14 @@ Wij waren van mening dat soms wat minder relevante entries beter zijn dan lege. 
 De 3 laatste tijdsperiodes (1990-2005 t.e.m. 2010-2025) tonen een beter representatief resultaat.
 Ook het aantal vereiste clusters is hier iets groter, hier 14, 15 en 16, en dus ook evenveel verschillende topics. Om er een voorbeeld uit te halen: cluster 1 uit periode 2000-2015 lijkt vooral artikels te bevatten over data management, wat op het topic data management lijkt te wijzen voor deze cluster. \\
 
-Omdat er van 1960 tot en met 1980 niet veel entries zijn gaan we deze hier niet bespreken.
+Omdat er van 1960 tot en met 1980 niet veel entries zijn gaan we deze hier niet bespreken. Hieronder bespreken we de belangrijkste observaties uit het clusteren:
+
+\begin{itemize}
+\item Van 1980 - 1995 zijn vooral de topics over semantic data, query optimization en processing, concurrency en object-oriented/temporal databases belangrijk.
+\item Van 1990 - 2005 zijn opnieuw object-oriented/temporal databases en query optimization belangrijk. Er komen join algoritmes en web services bij. Ook zien we de opkomst van XML.
+\item Van 2000 - 2015 zien we XML, join algoritmes en het web terugkomen. Wat we nog niet hebben gezien zijn de topics indexing en higher dimensional data. Wat ook interessant is, is de opkomst van het topic privacy.
+\item Van 2010 - 2025 zien we veel over graphs en graph databases. Ook is er een cluster over big data en machine/deep learning, wat uiteraard vandaag de dag ook een belangrijke thema's zijn. Ook komt de topic privacy terug.
+\end{itemize}
 
 Het elbow criterion was niet ideaal zoals te zien is in figuur \ref{fig:elbow} hierboven. We hebben geprobeerd dit toch goed te krijgen door wat parameters van de pipeline en k-means te veranderen, maar het resultaat bleef echter hetzelfde of we kregen zelf nog meer noise. De parameters waarmee we het resultaat wilden aanpassen waren de shingles, of word-nGrams, van de hashing vectorizer, het aantal features van de hashing vectorizer, hoeveel keer het k-means algoritme moet runnen met een random seed en het maximum aantal iteraties van het k-means algoritme. \\
 
