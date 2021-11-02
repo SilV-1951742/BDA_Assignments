@@ -39,7 +39,7 @@ DATA_MINING_REGEX: Final =  re.compile(r"(journals\/sigkdd|conf\/pkdd|conf\/icdm
 DB_KEYS: Final = ["journals/sigmod", "journals/vldb", "conf/edbt", "conf/icde"]
 DB_REGEX: Final =  re.compile(r"(journals\/sigmod|journals\/vldb|conf\/edbt|conf\/icde)")
 
-BLACKLIST: Final = [".", "Chair's Message.", "Editor's Notes.", "Chairman's Column.", "Title, Contents.", "Chairman's Message.", "Editor's Remarks.", "Letter.", "Announcements.", "Meeting Announcements", "Meeting Announcements and Calls for Papers." "-closeness.", "-diversity."]
+BLACKLIST: Final = [".", "Chair's Message.", "Editor's Notes.", "Chairman's Column.", "Title, Contents.", "Chairman's Message.", "Editor's Remarks.", "Letter.", "Announcements.", "Meeting Announcements.", "Meeting Announcements and Calls for Papers.",  "-closeness.", "-diversity.", "From the Chairman.", "Notes from the Vice Chairperson.", "Availability Notices.", "Summary Tables.", "Technical Reports.", "Title", "Reports on Standards.", "Calls for Papers / Announcements.", "Correction and Announcements.", "Meeting and Course Announcements."]
 
 class year_title_tuple(NamedTuple):
     """
@@ -116,7 +116,10 @@ class year_title_generator:
                 print(f"{iter} entries processed in {time.time() - start_time} seconds.")
             try:
                 if(self.check_key(entry)):
-                    yield self.create_year_title_tuple(entry)
+                    ty_tuple = self.create_year_title_tuple(entry)
+                    if ty_tuple.title in BLACKLIST:
+                        continue
+                    yield ty_tuple
             except year_title_except:
                 continue
 
@@ -129,28 +132,39 @@ class year_title_generator:
         self.fp.close()
         return True
 
-def generate_elbow_graph(pipeline, title_list, interval):
+def generate_elbow_graph(pipeline, yt_col):
     """
     Function to generate elbow graphs of kmeans
     """
-    print("Creating elbow graph")
-    plt.figure()
-            
-    features = pipeline.fit_transform(title_list)
-    elbow_list = {}
-    for k in range(1, 31):
-        kmeans = cluster.MiniBatchKMeans(n_clusters=k, n_init=15, max_iter=200)
-        kmeans.fit(features)
-        #label =  kmeans.labels_
-        #coeff = silhouette_score(features, label, metric='euclidean')
-        elbow_list[k] = kmeans.inertia_
-        #print(f"For n_clusters={k} in range {interval}, The Silhouette Coefficient is {coeff}")
-                
-    plt.plot(list(elbow_list.keys()), list(elbow_list.values()))
+    print("Creating elbow graphs")
+    #plt.figure()
     
-    plt.xlabel("Number of clusters")
-    plt.ylabel("Inertia")
-    plt.title(f"Elbow graph for time periode {interval}")
+    plot_index =  0
+    fig, axes = plt.subplots(nrows=2, ncols=3)
+    for y in range(1960, 2020, 10):
+        features = pipeline.fit_transform( [year_title.title for year_title  in yt_col if
+                                            (year_title.year >= y and year_title.year < (y + 15))])
+        elbow_list = {}
+        
+        for k in range(2, 31):
+            kmeans = cluster.MiniBatchKMeans(n_clusters=k, n_init=15, max_iter=200)
+            kmeans.fit(features)
+            #label =  kmeans.labels_
+            #coeff = silhouette_score(features, label, metric='euclidean')
+            elbow_list[k] = kmeans.inertia_
+            #print(f"For n_clusters={k} in range {interval}, The Silhouette Coefficient is {coeff}")
+
+        axes[plot_index // 3, plot_index % 3].set_title(f"{y} - {y+15}")
+        axes[plot_index // 3, plot_index % 3].set_xlabel("Number of clusters")
+        axes[plot_index // 3, plot_index % 3].set_ylabel("Inertia")
+        axes[plot_index // 3, plot_index % 3].plot(list(elbow_list.keys()), list(elbow_list.values()))
+        
+        #plt.title(f"Elbow graph for time periode {y} - {y+15}")
+        plot_index += 1
+        
+    fig.suptitle("Elbow graphs")
+    plt.tight_layout()
+    plt.savefig('elbow.pdf')
     plt.show()
 
 def print_data(data, vectorizer):
@@ -222,7 +236,7 @@ def main():
 
     # Setup the vectorizer
     my_stop_words = ENGLISH_STOP_WORDS.union(["application", "title", "contents", "editor", "chairman", "chair", "vice", "note", "conference"])
-    hasher = StemmedHasher(n_features=10000,
+    hasher = StemmedHasher(n_features=10000, ngram_range=(1, 1), 
                            stop_words=my_stop_words, alternate_sign=False,
                            norm=None, binary=False)
     vect = make_pipeline(hasher, TfidfTransformer())
@@ -266,12 +280,10 @@ def main():
 
     print("Elbow criterion per time period")
     # Generate the elbow graphs, comment this out if you want to quickly run kmeans
-    for y in range(1960, 2020, 10):
-        generate_elbow_graph(vect, [year_title.title for year_title  in year_title_collection if
-                                    (year_title.year >= y and year_title.year < (y + 15))], f"{y} - {y+15}")
+    generate_elbow_graph(vect, year_title_collection)
 
     # Loop per time interval
-    centres = [8, 11, 13, 14, 15, 16]
+    centres = [5, 8, 13, 14, 15, 16]
     cluster_index = 0
     # Amount of terms to print
     top_terms =  5
@@ -308,6 +320,8 @@ def main():
             #tsne = TSNE(n_components=2, verbose=0, perplexity=100, n_iter=2000).fit_transform(features)
             pca = PCA(n_components=2).fit_transform(features.todense())
             plt.scatter(pca[:, 0], pca[:, 1], c=y_kmeans)
+            plt.tight_layout()
+            plt.savefig(f'pca_{y}-{y + 15}.pdf')
             plt.show()
             print()
             print()
