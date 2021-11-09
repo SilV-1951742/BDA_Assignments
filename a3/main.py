@@ -38,7 +38,7 @@ class comment_tuple(NamedTuple):
     
 class shingle_set(NamedTuple):
     id: int
-    shingles: frozenset
+    shingles: frozenset[tuple]
 
 class similarity(NamedTuple):
     id_set1: int
@@ -127,6 +127,7 @@ class shingler:
     
 def hash_shingle_set(shingles: shingle_set) -> shingle_set:
     hashed_shingle_list = []
+    print(shingles)
     
     for shingle in shingles.shingles:
         m = hashlib.sha256()
@@ -134,6 +135,7 @@ def hash_shingle_set(shingles: shingle_set) -> shingle_set:
             m.update(elem.encode())
         hashed_shingle_list.append(int.from_bytes(m.digest()[:4], 'little'))
 
+    print(hashed_shingle_list)
     return shingle_set(shingles.id,
                        frozenset(hashed_shingle_list))
 
@@ -158,10 +160,58 @@ def main():
     hashed_shingles = []
     frequencies = []
 
+    # ------- Test with small data
     # shingles.append(shingle_set(0,
-    #                             frozenset(tuple(["first", "shingle"]))))
+    #                             frozenset([tuple(["first", "shingle"])])))
     # shingles.append(shingle_set(1,
-    #                             frozenset(tuple(["second", "shingle"]))))
+    #                             frozenset([tuple(["second", "shingle"])])))
+
+    # shingles.append(shingle_set(2,
+    #                             frozenset([tuple(["first", "shingle"]),
+    #                                        tuple(["second", "shingle"]),
+    #                                        tuple(["random", "word"])])))
+    # shingles.append(shingle_set(3,
+    #                             frozenset([tuple(["second", "shingle"])])))
+
+    # for shingle in shingles:
+    #     hashed_shingles.append(hash_shingle_set(shingle))
+
+    # for comb in combinations(hashed_shingles, 2):
+    #     print(comb)
+    #     frequencies.append(similarity(comb[0].id,
+    #                                   comb[1].id, 
+    #                                   calculate_jaccard_similarity(comb[0], comb[1])))
+    # ------- End of test
+
+    
+    zero_freq = 0
+    for freq in frequencies:
+        if freq.similarity > 0.0:
+            print(freq)
+            for comment in rnd_comments:
+                if comment.id == freq.id_set1:
+                    print(f"Comment: {comment}")
+                if comment.id == freq.id_set2:
+                    print(f"Comment: {comment}")
+            print()
+            for shingle in shingles:
+                if shingle.id == freq.id_set1:
+                    print(f"Shingle: {shingle}")
+                if shingle.id == freq.id_set2:
+                    print(f"Shingle: {shingle}")
+            print()
+            for shingle in hashed_shingles:
+                if shingle.id == freq.id_set1:
+                    print(f"Shingle: {shingle}")
+                if shingle.id == freq.id_set2:
+                    print(f"Shingle: {shingle}")
+            print()
+            print()
+            print()
+            print()
+        else:
+            zero_freq += 1
+    print(zero_freq)
     
     # Get posts from xml file
     with post_generator(args.dataset, args.chunksize) as posts:
