@@ -31,7 +31,8 @@ arg_parser.add_argument(
 
 class comment_tuple(NamedTuple):
     id: int
-    post_id: int
+    #owner_id: int
+    post_type: int
     score: int
     text: str
 
@@ -70,9 +71,10 @@ class post_generator:
                 if elem.tag == "row":
                     assert elem.text is None, "The row wasn't empty"
                     yield comment_tuple(int(elem.attrib["Id"]),
-                                        int(elem.attrib["PostId"]),
+                                        #int(elem.attrib["OwnerUserId"]),
+                                        int(elem.attrib["PostTypeId"]),
                                         int(elem.attrib["Score"]),
-                                        bleach.clean(elem.attrib["Text"])) 
+                                        bleach.clean(elem.attrib["Body"])) 
 
                 elem.clear()
                 while elem.getprevious() is not None:
@@ -127,7 +129,7 @@ class shingler:
     
 def hash_shingle_set(shingles: shingle_set) -> shingle_set:
     hashed_shingle_list = []
-    print(shingles)
+    #print(shingles)
     
     for shingle in shingles.shingles:
         m = hashlib.sha256()
@@ -135,7 +137,7 @@ def hash_shingle_set(shingles: shingle_set) -> shingle_set:
             m.update(elem.encode())
         hashed_shingle_list.append(int.from_bytes(m.digest()[:4], 'little'))
 
-    print(hashed_shingle_list)
+    #print(hashed_shingle_list)
     return shingle_set(shingles.id,
                        frozenset(hashed_shingle_list))
 
@@ -184,34 +186,34 @@ def main():
     # ------- End of test
 
     
-    zero_freq = 0
-    for freq in frequencies:
-        if freq.similarity > 0.0:
-            print(freq)
-            for comment in rnd_comments:
-                if comment.id == freq.id_set1:
-                    print(f"Comment: {comment}")
-                if comment.id == freq.id_set2:
-                    print(f"Comment: {comment}")
-            print()
-            for shingle in shingles:
-                if shingle.id == freq.id_set1:
-                    print(f"Shingle: {shingle}")
-                if shingle.id == freq.id_set2:
-                    print(f"Shingle: {shingle}")
-            print()
-            for shingle in hashed_shingles:
-                if shingle.id == freq.id_set1:
-                    print(f"Shingle: {shingle}")
-                if shingle.id == freq.id_set2:
-                    print(f"Shingle: {shingle}")
-            print()
-            print()
-            print()
-            print()
-        else:
-            zero_freq += 1
-    print(zero_freq)
+    # zero_freq = 0
+    # for freq in frequencies:
+    #     if freq.similarity > 0.0:
+    #         print(freq)
+    #         for comment in rnd_comments:
+    #             if comment.id == freq.id_set1:
+    #                 print(f"Comment: {comment}")
+    #             if comment.id == freq.id_set2:
+    #                 print(f"Comment: {comment}")
+    #         print()
+    #         for shingle in shingles:
+    #             if shingle.id == freq.id_set1:
+    #                 print(f"Shingle: {shingle}")
+    #             if shingle.id == freq.id_set2:
+    #                 print(f"Shingle: {shingle}")
+    #         print()
+    #         for shingle in hashed_shingles:
+    #             if shingle.id == freq.id_set1:
+    #                 print(f"Shingle: {shingle}")
+    #             if shingle.id == freq.id_set2:
+    #                 print(f"Shingle: {shingle}")
+    #         print()
+    #         print()
+    #         print()
+    #         print()
+    #     else:
+    #         zero_freq += 1
+    # print(zero_freq)
     
     # Get posts from xml file
     with post_generator(args.dataset, args.chunksize) as posts:
@@ -256,27 +258,27 @@ def main():
     for freq in frequencies:
         if freq.similarity > 0.0:
             print(freq)
-            for comment in rnd_comments:
-                if comment.id == freq.id_set1:
-                    print(f"Comment: {comment}")
-                if comment.id == freq.id_set2:
-                    print(f"Comment: {comment}")
-            print()
-            for shingle in shingles:
-                if shingle.id == freq.id_set1:
-                    print(f"Shingle: {shingle}")
-                if shingle.id == freq.id_set2:
-                    print(f"Shingle: {shingle}")
-            print()
-            for shingle in hashed_shingles:
-                if shingle.id == freq.id_set1:
-                    print(f"Shingle: {shingle}")
-                if shingle.id == freq.id_set2:
-                    print(f"Shingle: {shingle}")
-            print()
-            print()
-            print()
-            print()
+            # for comment in rnd_comments:
+            #     if comment.id == freq.id_set1:
+            #         print(f"Comment: {comment}")
+            #     if comment.id == freq.id_set2:
+            #         print(f"Comment: {comment}")
+            # print()
+            # for shingle in shingles:
+            #     if shingle.id == freq.id_set1:
+            #         print(f"Shingle: {shingle}")
+            #     if shingle.id == freq.id_set2:
+            #         print(f"Shingle: {shingle}")
+            # print()
+            # for shingle in hashed_shingles:
+            #     if shingle.id == freq.id_set1:
+            #         print(f"Shingle: {shingle}")
+            #     if shingle.id == freq.id_set2:
+            #         print(f"Shingle: {shingle}")
+            # print()
+            # print()
+            # print()
+            # print()
         else:
             zero_freq += 1
     print(zero_freq)
