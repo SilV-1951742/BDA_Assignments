@@ -11,11 +11,12 @@ import string
 import random
 import hashlib
 import matplotlib.pyplot as plt
+from collections import OrderedDict
 
 from nltk.util import pr
 
 SHINGLE_SIZE: Final = 5
-SAMPLES: Final = 5000
+SAMPLES: Final = 1000
 
 arg_parser = argparse.ArgumentParser(description="BDA assignment 2.")
 
@@ -247,14 +248,15 @@ def main():
     # Hash shingles
     for shingle in shingles:
         hashed_shingles.append(hash_shingle_set(shingle))
-
+    print("Shingles hashed")
 
     # Calculate similarities
     for comb in combinations(hashed_shingles, 2):
         frequencies.append(similarity(comb[0].id,
                                       comb[1].id, 
                                       calculate_jaccard_similarity(comb[0], comb[1])))
-
+    print("Claced frequencies")
+        
     histogram_data = dict()
 
     zero_freq = 0
@@ -297,7 +299,7 @@ def main():
     print("Amount of combinations with zero similarity: " + str(zero_freq))
 
 
-    sorted_dict = sorted(histogram_data.keys())
+    sorted_dict = OrderedDict(sorted(histogram_data.keys()))
 
     plt.bar([str(i) for i in sorted_dict.keys()], sorted_dict.values(), color='g')
     plt.show()
