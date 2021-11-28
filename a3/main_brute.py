@@ -1,4 +1,4 @@
-from typing import NamedTuple, Final, List
+from typing import NamedTuple, Final, List, OrderedDict
 from lxml import etree
 from itertools import islice, chain, combinations
 import argparse
@@ -11,11 +11,12 @@ import string
 import random
 import hashlib
 import matplotlib.pyplot as plt
+from collections import OrderedDict
 
 from nltk.util import pr
 
 SHINGLE_SIZE: Final = 5
-SAMPLES: Final = 5000
+SAMPLES: Final = 1000
 
 arg_parser = argparse.ArgumentParser(description="BDA assignment 2.")
 
@@ -255,7 +256,7 @@ def main():
                                       comb[1].id, 
                                       calculate_jaccard_similarity(comb[0], comb[1])))
 
-    histogram_data = dict()
+    histogram_data = OrderedDict()
 
     zero_freq = 0
     for freq in frequencies:
@@ -296,10 +297,9 @@ def main():
     print(histogram_data)
     print("Amount of combinations with zero similarity: " + str(zero_freq))
 
+    sorted_data = OrderedDict(sorted(histogram_data.items(), key=lambda t: t[0]))
 
-    sorted_dict = sorted(histogram_data.keys())
-
-    plt.bar([str(i) for i in sorted_dict.keys()], sorted_dict.values(), color='g')
+    plt.bar([str(i) for i in sorted_data.keys()], sorted_data.values(), color='g')
     plt.show()
 
     
