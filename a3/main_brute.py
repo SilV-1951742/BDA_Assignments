@@ -1,4 +1,4 @@
-from typing import NamedTuple, Final, List
+from typing import NamedTuple, Final, List, OrderedDict
 from lxml import etree
 from itertools import islice, chain, combinations
 import argparse
@@ -255,8 +255,6 @@ def main():
         frequencies.append(similarity(comb[0].id,
                                       comb[1].id, 
                                       calculate_jaccard_similarity(comb[0], comb[1])))
-    print("Claced frequencies")
-        
     histogram_data = dict()
 
     zero_freq = 0
@@ -298,10 +296,10 @@ def main():
     print(histogram_data)
     print("Amount of combinations with zero similarity: " + str(zero_freq))
 
+    sorted_data = OrderedDict(sorted(histogram_data.items(), key=lambda t: t[0]))
 
-    sorted_dict = OrderedDict(sorted(histogram_data.keys()))
+    plt.bar([str(i) for i in sorted_data.keys()], sorted_data.values(), color='g')
 
-    plt.bar([str(i) for i in sorted_dict.keys()], sorted_dict.values(), color='g')
     plt.show()
 
     
