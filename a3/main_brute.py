@@ -258,27 +258,27 @@ def main():
     for freq in frequencies:
         if freq.similarity > 0.0:
             print(freq)
-            for comment in rnd_comments:
-                if comment.id == freq.id_set1:
-                    print(f"Comment: {comment}")
-                if comment.id == freq.id_set2:
-                    print(f"Comment: {comment}")
-            print()
-            for shingle in shingles:
-                if shingle.id == freq.id_set1:
-                    print(f"Shingle: {shingle}")
-                if shingle.id == freq.id_set2:
-                    print(f"Shingle: {shingle}")
-            print()
-            for shingle in hashed_shingles:
-                if shingle.id == freq.id_set1:
-                    print(f"Shingle: {shingle}")
-                if shingle.id == freq.id_set2:
-                    print(f"Shingle: {shingle}")
-            print()
-            print()
-            print()
-            print()
+            # for comment in rnd_comments:
+            #     if comment.id == freq.id_set1:
+            #         print(f"Comment: {comment}")
+            #     if comment.id == freq.id_set2:
+            #         print(f"Comment: {comment}")
+            # print()
+            # for shingle in shingles:
+            #     if shingle.id == freq.id_set1:
+            #         print(f"Shingle: {shingle}")
+            #     if shingle.id == freq.id_set2:
+            #         print(f"Shingle: {shingle}")
+            # print()
+            # for shingle in hashed_shingles:
+            #     if shingle.id == freq.id_set1:
+            #         print(f"Shingle: {shingle}")
+            #     if shingle.id == freq.id_set2:
+            #         print(f"Shingle: {shingle}")
+            # print()
+            # print()
+            # print()
+            # print()
         else:
             zero_freq += 1
     print(zero_freq)
