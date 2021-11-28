@@ -10,11 +10,12 @@ from nltk.corpus import stopwords
 import string
 import random
 import hashlib
+import matplotlib.pyplot as plt
 
 from nltk.util import pr
 
 SHINGLE_SIZE: Final = 5
-SAMPLES: Final = 1000
+SAMPLES: Final = 5000
 
 arg_parser = argparse.ArgumentParser(description="BDA assignment 2.")
 
@@ -254,10 +255,19 @@ def main():
                                       comb[1].id, 
                                       calculate_jaccard_similarity(comb[0], comb[1])))
 
+    histogram_data = dict()
+
     zero_freq = 0
     for freq in frequencies:
         if freq.similarity > 0.0:
-            print(freq)
+            current_sim = round(freq.similarity * 100, 1)
+
+            if current_sim in histogram_data:
+                histogram_data[current_sim] += 1
+            else:
+                histogram_data[current_sim] = 1
+
+            # print(freq)
             # for comment in rnd_comments:
             #     if comment.id == freq.id_set1:
             #         print(f"Comment: {comment}")
@@ -281,7 +291,17 @@ def main():
             # print()
         else:
             zero_freq += 1
-    print(zero_freq)
+
+    print("histogram data")
+    print(histogram_data)
+    print("Amount of combinations with zero similarity: " + str(zero_freq))
+
+
+    sorted_dict = sorted(histogram_data.keys())
+
+    plt.bar([str(i) for i in sorted_dict.keys()], sorted_dict.values(), color='g')
+    plt.show()
+
     
             
 if __name__ == "__main__":
