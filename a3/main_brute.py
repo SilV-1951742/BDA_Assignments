@@ -296,7 +296,10 @@ def main():
     print(histogram_data)
     print("Amount of combinations with zero similarity: " + str(zero_freq))
 
-    plt.bar([str(i) for i in histogram_data.keys()], histogram_data.values(), color='g')
+
+    sorted_dict = sorted(histogram_data.keys())
+
+    plt.bar([str(i) for i in sorted_dict.keys()], sorted_dict.values(), color='g')
     plt.show()
 
     
