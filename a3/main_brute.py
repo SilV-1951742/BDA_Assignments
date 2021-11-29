@@ -298,6 +298,7 @@ def main():
 
     sorted_data = OrderedDict(sorted(histogram_data.items(), key=lambda t: t[0]))
 
+    plt.figure()
     plt.bar([str(i) for i in sorted_data.keys()], sorted_data.values(), color='g')
 
     plt.show()
