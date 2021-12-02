@@ -5,3 +5,4 @@
 **/*.out
 **/auto
 **/.ipynb_checkpoints
+*.7z
