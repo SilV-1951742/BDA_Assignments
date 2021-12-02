@@ -10,9 +10,6 @@ with pkgs;
 mkShell {
   name = "pip-env";
   buildInputs = with pythonPackages; [
-    #azure-cli
-    #kubectl
-
     # Python requirements (enough to get a virtualenv going).
     psutil
     #tensorflow
